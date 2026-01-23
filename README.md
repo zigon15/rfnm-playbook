@@ -4,6 +4,7 @@
 - `https://github.com/rfnm/la9310-freertos`
 - `https://github.com/nxp-imx/imx-atf`
 - `https://github.com/rfnm/librfnm`
+- `https://github.com/rfnm/imx8mp-uboot`
 
 The scripts assume that the follow repos are in the same root directory as this repo so
 ```
@@ -13,5 +14,6 @@ The scripts assume that the follow repos are in the same root directory as this 
         ├── la9310-freertos/
         ├── imx-atf/
         ├── librfnm/
+        ├── imx8mp-uboot/
         └── rfnm-playbook/
 ```
