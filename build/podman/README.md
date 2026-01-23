@@ -5,7 +5,7 @@ If only building code
 - `./buildContainer.sh`
 
 If flashing sd card, copy container to root
-- `copyContainerRoot.sh`
+- `./copyContainerRoot.sh`
 
 ## Run Container
 To just build the required code
@@ -13,7 +13,7 @@ To just build the required code
 
 To build the required code and create a bootable sd card
 1. `./copyContainerRoot.sh`
-1. `sudo ./buildContainer.sh /dev/sdb`
+1. `sudo ./runContainer.sh /dev/sdb`
 
 ## Build Linux with Debian RootFS
 In container CLI

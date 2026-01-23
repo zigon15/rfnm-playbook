@@ -1,19 +1,12 @@
-### Repos Needs
-- `https://github.com/rfnm/imx8mp-kernel`
-- `https://github.com/rfnm/la9310-driver`
-- `https://github.com/rfnm/la9310-freertos`
-- `https://github.com/nxp-imx/imx-atf`
-- `https://github.com/rfnm/librfnm`
-- `https://github.com/rfnm/imx8mp-uboot`
+# Build
 
-The scripts assume that the follow repos are in the same root directory as this repo so
-```
-.../rfnm/
-        ├── imx8mp-kernel/
-        ├── la9310-driver/
-        ├── la9310-freertos/
-        ├── imx-atf/
-        ├── librfnm/
-        ├── imx8mp-uboot/
-        └── rfnm-playbook/
-```
+The easiest way to build is with podman. Manual way is missing the repo patches to stop the builds failing.
+
+## Podman Build
+1. `./buildContainer.sh`
+1. `./copyContainerRoot.sh` We need to run container as root to be able to flash SD card
+1. `sudo ./runContainer.sh /dev/sdX` where sdX is the sd card you want to flash
+1. `./buildLinux.sh`
+1. `./flashSD.sh`
+
+Ensure the RFNM boot switches are set to SD. Insert SD card and it should boot. Currently only the serial terminal and SSH works. Desktop in progress.

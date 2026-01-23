@@ -1,0 +1,5 @@
+[Match]
+Name=end*
+
+[Network]
+DHCP=yes
