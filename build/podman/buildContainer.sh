@@ -1,1 +1,1 @@
-podman build -t rfnm-builder
+podman build -t rfnm-builder .

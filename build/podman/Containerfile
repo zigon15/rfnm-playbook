@@ -20,7 +20,10 @@ RUN apt-get update && apt-get install -y \
     device-tree-compiler \
     lzop \
     wget \
+    uuid-dev \
     && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y libgnutls28-dev
 
 # Set the working directory
 WORKDIR /work
