@@ -3,8 +3,7 @@ FROM ubuntu:25.10
 # Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies for building U-Boot and Linux Kernel
-# 'crossbuild-essential-arm64' installs gcc-aarch64-linux-gnu automatically
+# Install required dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     crossbuild-essential-arm64 \
@@ -20,13 +19,24 @@ RUN apt-get update && apt-get install -y \
     device-tree-compiler \
     lzop \
     wget \
+    kmod \
     uuid-dev \
+    libgnutls28-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y libgnutls28-dev
+# Install dependancies for creating Debian root filesystem
+RUN apt-get update && apt-get install -y \
+    debootstrap \
+    debian-archive-keyring \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download and install qemu-aarch64-static for cross-architecture builds
+RUN wget https://github.com/multiarch/qemu-user-static/releases/latest/download/qemu-aarch64-static && \
+    chmod +x qemu-aarch64-static && \
+    mv qemu-aarch64-static /usr/bin/
 
 # Set the working directory
-WORKDIR /work
+WORKDIR /work/scripts
 
 # Set environment variables for Cross-Compilation
 ENV ARCH=arm64

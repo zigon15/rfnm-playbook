@@ -5,7 +5,7 @@ SSH into RFNM
 - ```ssh root@10.27.41.31```
 
 Enabling USB-A Power
-- ```/rfnm/scripts/eanble_usb-a```
+- ```/rfnm/scripts/enable_usb-a```
 
 
 Can likely host packages on local PC to update from
