@@ -33,3 +33,4 @@ echo_step "Building the Debian Root Filesystem"
 cd /work/scripts/debian
 ./build.sh
 ./installKernelModules.sh
+./installFirmware.sh

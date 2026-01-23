@@ -1,17 +1,19 @@
 #!/bin/bash
 
 #---- PATHS (Adjust these to match your actual build paths) ----#
-UBOOT_ROOT="../../imx8mp-uboot"
-KERNEL_ROOT="../../imx8mp-kernel"
-DEBIAN_ROOT_FS="../../build/rfnm-debian-rootfs" # Assumes this is a FOLDER, not a .img file
+UBOOT_ROOT="/work/build/imx8mp-uboot"
+KERNEL_ROOT="/work/build/imx8mp-kernel"
+DEBIAN_ROOT_FS="/work/build/debian" 
 
-if [ "$#" -ne 1 ]; then
+# Use FLASH_DEVICE env var if set, otherwise use $1
+DEVICE="${FLASH_DEVICE:-$1}"
+
+if [ -z "$DEVICE" ]; then
     echo "Usage: $0 <device>"
     echo "Example: $0 /dev/sdb"
+    echo "Alternatively, set the FLASH_DEVICE environment variable."
     exit 1
 fi
-
-DEVICE="$1"
 
 #---- CHECKS ----#
 
@@ -47,6 +49,7 @@ if [ ! -d "$DEBIAN_ROOT_FS" ]; then
 fi
 
 # 4. SAFETY CHECK: Is it a system drive?
+# Check if the device or any of its partitions are mounted at / or /boot
 if lsblk -no MOUNTPOINTS "$DEVICE" | grep -qE '^(/|/boot|/boot/efi)$'; then
     echo "ERROR: $DEVICE is a system drive (contains / or /boot mount points)!"
     exit 1

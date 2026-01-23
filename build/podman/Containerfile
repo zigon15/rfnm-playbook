@@ -22,6 +22,11 @@ RUN apt-get update && apt-get install -y \
     kmod \
     uuid-dev \
     libgnutls28-dev \
+    fdisk \
+    parted \
+    u-boot-tools \
+    dosfstools \
+    rsync \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependancies for creating Debian root filesystem
