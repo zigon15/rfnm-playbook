@@ -17,6 +17,7 @@ fi
 podman run -it --privileged --rm \
     $DEVICE_ARG \
     $ENV_ARG \
+    --network host \
     -v $(pwd)/scripts:/work/scripts \
     -v $(pwd)/build:/work/build \
     rfnm-builder "$@"

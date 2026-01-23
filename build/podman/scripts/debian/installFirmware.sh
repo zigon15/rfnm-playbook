@@ -17,7 +17,7 @@ if [ ! -d "$FIRMWARE_SRC" ]; then
 fi
 
 ABS_OUTPUT_DIR=$(realpath "$BUILD_DIR")
-FIRMWARE_DEST="$ABS_OUTPUT_DIR/lib/firmware"
+FIRMWARE_DEST="$ABS_OUTPUT_DIR/lib/firmware/imx"
 
 #---- Install Firmware to Debian Root Filesystem ----#
 echo "Installing firmware to: $FIRMWARE_DEST"

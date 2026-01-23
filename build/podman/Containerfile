@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     u-boot-tools \
     dosfstools \
     rsync \
+    udev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependancies for creating Debian root filesystem
