@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DIR="./firmware/ddr"
+DIR="./firmware/nxp"
 
 mkdir -p $DIR
 cd $DIR

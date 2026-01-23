@@ -39,13 +39,17 @@ echo "Unmounting..."
 umount "$DEVICE"* 2>/dev/null
 
 #---- STEP 1: PARTITIONING ----#
-# Partition 1: 100MB, FAT32 (Boot)
-# Partition 2: Rest of disk, Linux (RootFS)
+# We create a 100MB FAT32 partition starting at 8MB offset.
+# The 8MB offset is CRITICAL to leave space for 'flash.bin' (which sits at 32KB and is ~1.5MB).
 echo "Creating partition table..."
+sudo sfdisk --delete "$DEVICE" 2>/dev/null || true
 sudo sfdisk "$DEVICE" << EOF
-,100M,c
-,+,83
+start=16384, size=204800, type=c
+start=221184, type=83
 EOF
+# Note: start=16384 (8MB), size=204800 (100MB) for FAT32 partition
+# Second partition starts at sector 221184 (after partition 1) and uses remaining space
+# Explicit sector-based partitioning ensures no overlap with U-Boot.
 
 # Re-read partition table
 partprobe "$DEVICE"
@@ -77,9 +81,9 @@ cp "$DTB_FILE" "$MOUNT_POINT_BOOT/"
 # This sets root=/dev/mmcblk1p2 (Partition 2)
 echo "Generating boot.cmd..."
 cat << 'EOF' > "$MOUNT_POINT_BOOT/boot.cmd"
-setenv bootargs console=${console},115200 earlycon root=/dev/mmcblk1p2 rootwait rw
-load mmc ${mmcdev}:1 ${loadaddr} Image
-load mmc ${mmcdev}:1 ${fdt_addr} imx8mp-rfnm.dtb
+setenv bootargs console=ttymxc1,115200 earlycon root=/dev/mmcblk1p2 rootwait rw
+load mmc 1:1 ${loadaddr} Image
+load mmc 1:1 ${fdt_addr} imx8mp-rfnm.dtb
 booti ${loadaddr} - ${fdt_addr}
 EOF
 

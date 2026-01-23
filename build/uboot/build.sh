@@ -9,7 +9,7 @@ UBOOT_ROOT="../../../imx8mp-uboot"
 
 #---- Get Prerequisites ----#
 #- DDR firmware
-cp firmware/ddr/firmware-imx-8.16/firmware/ddr/synopsys/lpddr4*.bin "$UBOOT_ROOT"
+cp firmware/nxp/firmware-imx-8.16/firmware/ddr/synopsys/lpddr4*.bin "$UBOOT_ROOT"
 
 #- Arm Trusted Firmware
 cp firmware/atf/bl31.bin "$UBOOT_ROOT"
