@@ -1,0 +1,120 @@
+#!/bin/bash
+
+#---- PATHS (Adjust these to match your actual build paths) ----#
+UBOOT_ROOT="../../imx8mp-uboot"
+KERNEL_ROOT="../../imx8mp-kernel"
+DEBIAN_ROOT_FS="../../build/rfnm-debian-rootfs" # Assumes this is a FOLDER, not a .img file
+DEVICE="/dev/sdb"
+
+# Files to flash
+UBOOT_IMAGE="${UBOOT_ROOT}/flash.bin"
+KERNEL_IMAGE="${KERNEL_ROOT}/arch/arm64/boot/Image"
+DTB_FILE="${KERNEL_ROOT}/arch/arm64/boot/dts/freescale/imx8mp-rfnm.dtb"
+
+#---- CHECKS ----#
+# 1. Check existence of single files
+for file in "$UBOOT_IMAGE" "$KERNEL_IMAGE" "$DTB_FILE"; do
+    if [ ! -f "$file" ]; then
+        echo "Error: File not found -> $file"
+        echo "Please fix the paths in the script variables."
+        exit 1
+    fi
+done
+
+# 2. Check existence of RootFS Directory
+if [ ! -d "$DEBIAN_ROOT_FS" ]; then
+    echo "Error: RootFS directory not found -> $DEBIAN_ROOT_FS"
+    exit 1
+fi
+
+# 3. SAFETY CHECK
+if [[ "$DEVICE" == *"/dev/sda"* ]] || [[ "$DEVICE" == *"/dev/nvme"* ]] || [[ "$DEVICE" == *"/dev/loop"* ]]; then
+    echo "DANGER: Target is $DEVICE. This looks like a SYSTEM DRIVE."
+    read -p "Type 'yes' to wipe and flash this device: " CONFIRM
+    if [ "$CONFIRM" != "yes" ]; then exit 1; fi
+fi
+
+echo "Target: $DEVICE"
+echo "Unmounting..."
+umount "$DEVICE"* 2>/dev/null
+
+#---- STEP 1: PARTITIONING ----#
+# Partition 1: 100MB, FAT32 (Boot)
+# Partition 2: Rest of disk, Linux (RootFS)
+echo "Creating partition table..."
+sudo sfdisk "$DEVICE" << EOF
+,100M,c
+,+,83
+EOF
+
+# Re-read partition table
+partprobe "$DEVICE"
+sleep 2
+
+#---- STEP 2: FLASH U-BOOT ----#
+echo "Flashing U-Boot to raw offset..."
+dd if="$UBOOT_IMAGE" of="$DEVICE" bs=1K seek=32 conv=fsync status=none
+
+#---- STEP 3: FORMAT & COPY BOOT FILES ----#
+PART1="${DEVICE}1"
+PART2="${DEVICE}2"
+
+echo "Formatting BOOT ($PART1)..."
+mkfs.vfat -n "BOOT" "$PART1"
+
+echo "Formatting ROOTFS ($PART2)..."
+mkfs.ext4 -F -L "rootfs" "$PART2"
+
+# --- COPY BOOT FILES ---
+echo "Mounting BOOT and copying kernel..."
+MOUNT_POINT_BOOT=$(mktemp -d)
+mount "$PART1" "$MOUNT_POINT_BOOT"
+
+cp "$KERNEL_IMAGE" "$MOUNT_POINT_BOOT/"
+cp "$DTB_FILE" "$MOUNT_POINT_BOOT/"
+
+# Optional: Generate a boot.scr on the fly so you don't have to type commands manually
+# This sets root=/dev/mmcblk1p2 (Partition 2)
+echo "Generating boot.cmd..."
+cat << 'EOF' > "$MOUNT_POINT_BOOT/boot.cmd"
+setenv bootargs console=${console},115200 earlycon root=/dev/mmcblk1p2 rootwait rw
+load mmc ${mmcdev}:1 ${loadaddr} Image
+load mmc ${mmcdev}:1 ${fdt_addr} imx8mp-rfnm.dtb
+booti ${loadaddr} - ${fdt_addr}
+EOF
+
+# Compile boot.scr if mkimage exists
+if command -v mkimage &> /dev/null; then
+    mkimage -C none -A arm -T script -d "$MOUNT_POINT_BOOT/boot.cmd" "$MOUNT_POINT_BOOT/boot.scr"
+    echo "boot.scr generated!"
+else
+    echo "WARNING: mkimage not found. You will need to type boot commands manually."
+fi
+
+umount "$MOUNT_POINT_BOOT"
+rmdir "$MOUNT_POINT_BOOT"
+
+#---- STEP 4: COPY ROOT FILESYSTEM ----#
+echo "Mounting ROOTFS and copying Debian files (This may take a while)..."
+MOUNT_POINT_ROOT=$(mktemp -d)
+mount "$PART2" "$MOUNT_POINT_ROOT"
+
+# Use rsync to preserve all permissions, links, and ownership
+# If you don't have rsync, use: cp -a "$DEBIAN_ROOT_FS/." "$MOUNT_POINT_ROOT/"
+sudo rsync -aAX --info=progress2 "$DEBIAN_ROOT_FS/" "$MOUNT_POINT_ROOT/" --exclude="sys" --exclude="proc" --exclude="dev" --exclude="tmp"
+
+# Create mount point directories just in case they were excluded or missing
+sudo mkdir -p "$MOUNT_POINT_ROOT/sys" "$MOUNT_POINT_ROOT/proc" "$MOUNT_POINT_ROOT/dev" "$MOUNT_POINT_ROOT/tmp"
+
+umount "$MOUNT_POINT_ROOT"
+rmdir "$MOUNT_POINT_ROOT"
+
+echo "---------------------------------"
+echo "SUCCESS! SD Card is ready."
+echo "1. Insert into board."
+echo "2. If 'boot.scr' was generated, it should boot automatically."
+echo "3. If NOT, run:"
+echo "   setenv bootargs console=\${console},115200 earlycon root=/dev/mmcblk1p2 rootwait rw"
+echo "   fatload mmc 1:1 \$loadaddr Image"
+echo "   fatload mmc 1:1 \$fdt_addr imx8mp-rfnm.dtb"
+echo "   booti \$loadaddr - \$fdt_addr"
