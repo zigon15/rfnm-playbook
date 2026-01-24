@@ -37,7 +37,7 @@ cd /work/scripts/kernel
 
 # Build the LA9310 firmware
 echo_step "Building the LA9310 Firmware"
-cd /work/scripts/la9310-freertos
+cd /work/scripts/la9310-rtos
 ./build.sh
 
 # Build the LA9310 Driver
