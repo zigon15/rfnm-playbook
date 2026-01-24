@@ -35,6 +35,11 @@ echo_step "Building the Linux Kernel"
 cd /work/scripts/kernel
 ./build.sh
 
+# Build the LA9310 Driver
+echo_step "Building the LA9310 Driver"
+cd /work/scripts/la9310
+./build.sh
+
 # Build the Debian Root Filesystem
 echo_step "Building the Debian Root Filesystem"
 cd /work/scripts/debian

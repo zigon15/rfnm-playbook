@@ -28,6 +28,8 @@ RUN apt-get update && apt-get install -y \
     dosfstools \
     rsync \
     udev \
+    tig \
+    nano \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependancies for creating Debian root filesystem

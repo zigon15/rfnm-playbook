@@ -27,11 +27,12 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
 
     # 4. Install and enable SSH
     apt-get update
-    apt-get install -y openssh-server systemd-resolved
+    apt-get install -y openssh-server systemd-resolved pciutils systemd-timesyncd
 
     # 5. Enable networking
     systemctl enable systemd-networkd
     systemctl enable systemd-resolved
+    systemctl enable systemd-timesyncd
 
     ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 

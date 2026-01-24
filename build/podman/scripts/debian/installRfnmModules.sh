@@ -23,6 +23,7 @@ mkdir -p "$MODULE_DIR"
 echo "Installing RFNM LA9310 driver modules to: $ABS_OUTPUT_DIR"
 
 cp -v /work/build/la9310-driver/kernel_driver/la9310rfnm/*.ko "$MODULE_DIR/"
+cp -v /work/build/la9310-driver/kernel_driver/la9310shiva/*.ko "$MODULE_DIR/"
 
 #---- Update Module Dependencies ----#
 echo "Updating module dependencies..."

@@ -11,6 +11,10 @@ scripts/config --disable CONFIG_MXC_GPU_VIV
 scripts/config --enable CONFIG_DRM_ETNAVIV
 scripts/config --enable CONFIG_DRM_ETNAVIV_THERMAL
 
+# Enable required modules
+scripts/config --enable CONFIG_LEDS_RFNM_WSLED
+scripts/config --enable CONFIG_RFNM_SI5510
+
 # Apply config changes
 make olddefconfig
 
