@@ -14,6 +14,7 @@ scripts/config --enable CONFIG_DRM_ETNAVIV_THERMAL
 # Enable required modules
 scripts/config --enable CONFIG_LEDS_RFNM_WSLED
 scripts/config --enable CONFIG_RFNM_SI5510
+scripts/config --enable CONFIG_RFNM_BOOTCONFIG
 
 # Apply config changes
 make olddefconfig
