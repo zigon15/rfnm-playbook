@@ -34,3 +34,6 @@ git apply /work/scripts/patches/imx8mp-uboot.patch
 
 cd /work/build/la9310-driver
 git apply /work/scripts/patches/la9310-driver.patch
+
+cd /work/build/la9310-freertos
+git apply /work/scripts/patches/la9310-freertos.patch

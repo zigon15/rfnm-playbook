@@ -1,0 +1,57 @@
+From 385c8eddbee06c15ebcf4349fdfeaf6540b43cef Mon Sep 17 00:00:00 2001
+From: Simon <simonzigon15@gmail.com>
+Date: Sat, 24 Jan 2026 14:02:54 +1030
+Subject: [PATCH] Fixes
+
+---
+ Demo/CORTEX_M4_NXP_LA9310_GCC/build_release.sh     | 4 ++--
+ Demo/CORTEX_M4_NXP_LA9310_GCC/include/la9310_pci.h | 1 +
+ Demo/CORTEX_M4_NXP_LA9310_GCC/rfnm_rf_ctrl.c       | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/Demo/CORTEX_M4_NXP_LA9310_GCC/build_release.sh b/Demo/CORTEX_M4_NXP_LA9310_GCC/build_release.sh
+index 65cb861..7a07963 100755
+--- a/Demo/CORTEX_M4_NXP_LA9310_GCC/build_release.sh
++++ b/Demo/CORTEX_M4_NXP_LA9310_GCC/build_release.sh
+@@ -19,11 +19,11 @@ else
+ 	}
+ 	if [ "$boot_mode" = "pcie" ];then
+ 		echo "Build NLM for PCIe Host Mode.."
+-		cmake -DCMAKE_TOOLCHAIN_FILE="./armgcc.cmake" -G "Unix Makefiles" -DTURN_ON_STANDALONE_MODE=OFF  -DCMAKE_BUILD_TYPE=Release  .
++		cmake -DCMAKE_TOOLCHAIN_FILE="./armgcc.cmake" -G "Unix Makefiles" -DTURN_ON_STANDALONE_MODE=OFF  -DCMAKE_BUILD_TYPE=Release  -DCMAKE_C_FLAGS="-Wno-address-of-packed-member" .
+ 		echo "#define TURN_ON_HOST_MODE  1" > $file
+ 	else
+ 		echo "Build NLM for I2C Standalone Mode.."
+-		cmake -DCMAKE_TOOLCHAIN_FILE="./armgcc.cmake" -G "Unix Makefiles" -DTURN_ON_STANDALONE_MODE=ON  -DCMAKE_BUILD_TYPE=Release  .
++		cmake -DCMAKE_TOOLCHAIN_FILE="./armgcc.cmake" -G "Unix Makefiles" -DTURN_ON_STANDALONE_MODE=ON  -DCMAKE_BUILD_TYPE=Release  -DCMAKE_C_FLAGS="-Wno-address-of-packed-member" .
+ 		echo "#define TURN_ON_STANDALONE_MODE  1" > $file
+ 	fi
+ fi
+diff --git a/Demo/CORTEX_M4_NXP_LA9310_GCC/include/la9310_pci.h b/Demo/CORTEX_M4_NXP_LA9310_GCC/include/la9310_pci.h
+index c8e3a16..74c75f8 100644
+--- a/Demo/CORTEX_M4_NXP_LA9310_GCC/include/la9310_pci.h
++++ b/Demo/CORTEX_M4_NXP_LA9310_GCC/include/la9310_pci.h
+@@ -31,6 +31,7 @@
+ 
+ #include "config.h"
+ #include <la9310_pci_def.h>
++#include <stdint.h>
+ 
+ #if NXP_ERRATUM_A_009410
+     #define PCIE_PEX_PF_CONTROL_BASE        ( PCIE_BASE_ADDR + 0xC0000 )
+diff --git a/Demo/CORTEX_M4_NXP_LA9310_GCC/rfnm_rf_ctrl.c b/Demo/CORTEX_M4_NXP_LA9310_GCC/rfnm_rf_ctrl.c
+index cf13d13..016be3d 100644
+--- a/Demo/CORTEX_M4_NXP_LA9310_GCC/rfnm_rf_ctrl.c
++++ b/Demo/CORTEX_M4_NXP_LA9310_GCC/rfnm_rf_ctrl.c
+@@ -14,7 +14,7 @@
+ volatile rf_ctrl_s rf_ctrl __attribute__((section(".rfctrl")));
+ 
+ /* routine for returning the current timer value */
+-inline uint32_t uGetPhyTimerTimestamp(void)
++uint32_t uGetPhyTimerTimestamp(void)
+ {
+ 	return ulPhyTimerCapture( PHY_TIMER_COMPARATOR_COUNT - 1 );
+ }
+-- 
+2.51.0
+

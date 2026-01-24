@@ -35,15 +35,21 @@ echo_step "Building the Linux Kernel"
 cd /work/scripts/kernel
 ./build.sh
 
+# Build the LA9310 firmware
+echo_step "Building the LA9310 Firmware"
+cd /work/scripts/la9310-freertos
+./build.sh
+
 # Build the LA9310 Driver
 echo_step "Building the LA9310 Driver"
-cd /work/scripts/la9310
+cd /work/scripts/la9310-driver
 ./build.sh
 
 # Build the Debian Root Filesystem
 echo_step "Building the Debian Root Filesystem"
 cd /work/scripts/debian
 ./build.sh
+./installFirmware.sh
 ./installKernelModules.sh
 ./installRfnmModules.sh
-./installFirmware.sh
+./installRfnmFirmware.sh

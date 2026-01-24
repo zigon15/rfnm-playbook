@@ -30,6 +30,9 @@ RUN apt-get update && apt-get install -y \
     udev \
     tig \
     nano \
+    cmake \
+    gcc-arm-none-eabi \
+    binutils-arm-none-eabi \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependancies for creating Debian root filesystem
