@@ -12,4 +12,4 @@ export RFNM_BUILD_DIR=$(realpath "../../../../")
 
 #---- Build ----#
 cd '../../../../la9310-driver'
-make KCFLAGS="-Wno-int-conversion -w" -j$(nproc)
+make KCFLAGS="-Wno-int-conversion" -j$(nproc)

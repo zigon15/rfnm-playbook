@@ -8,7 +8,7 @@ export CROSS_COMPILE=aarch64-linux-gnu-
 cd ../../../../imx8mp-kernel/
 
 # Make config for i.MX8M
-make imx_v8_defconfig
+make imx8mp_rfnm_defconfig
 
 # Disable proprietary GPU driver, enable open-source etnaviv
 scripts/config --disable CONFIG_MXC_GPU_VIV

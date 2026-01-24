@@ -4,7 +4,7 @@
 cd /work/build/imx8mp-kernel/
 
 # Make config for i.MX8M
-make imx_v8_defconfig
+make imx8mp_rfnm_defconfig
 
 # Disable proprietary GPU driver, enable open-source etnaviv
 scripts/config --disable CONFIG_MXC_GPU_VIV
@@ -12,9 +12,9 @@ scripts/config --enable CONFIG_DRM_ETNAVIV
 scripts/config --enable CONFIG_DRM_ETNAVIV_THERMAL
 
 # Enable required modules
-scripts/config --enable CONFIG_LEDS_RFNM_WSLED
-scripts/config --enable CONFIG_RFNM_SI5510
-scripts/config --enable CONFIG_RFNM_BOOTCONFIG
+# scripts/config --enable CONFIG_LEDS_RFNM_WSLED
+# scripts/config --enable CONFIG_RFNM_SI5510
+# scripts/config --enable CONFIG_RFNM_BOOTCONFIG
 
 # Apply config changes
 make olddefconfig

@@ -41,6 +41,11 @@ RUN apt-get update && apt-get install -y \
     debian-archive-keyring \
     && rm -rf /var/lib/apt/lists/*
 
+# Install dependancies for creating Debian root filesystem
+RUN apt-get update && apt-get install -y \
+    iputils-ping \
+    && rm -rf /var/lib/apt/lists/*
+
 # Download and install qemu-aarch64-static for cross-architecture builds
 RUN wget https://github.com/multiarch/qemu-user-static/releases/latest/download/qemu-aarch64-static && \
     chmod +x qemu-aarch64-static && \
