@@ -9,3 +9,4 @@ git clone --recursive https://github.com/rfnm/la9310-driver.git --depth 1 --shal
 git clone --recursive https://github.com/rfnm/la9310-freertos.git --depth 1 --shallow-submodules
 git clone --recursive https://github.com/nxp-imx/imx-atf.git --depth 1 --shallow-submodules
 git clone --recursive https://github.com/rfnm/librfnm.git --depth 1 --shallow-submodules
+git clone --recursive https://github.com/nxp-imx/imx-test --depth 1 --shallow-submodules -b lf-5.15.71_2.2.0

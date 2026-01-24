@@ -114,21 +114,21 @@ cp "$DTB_FILE" "$MOUNT_POINT_BOOT/"
 
 # Optional: Generate a boot.scr on the fly so you don't have to type commands manually
 # This sets root=/dev/mmcblk1p2 (Partition 2)
-echo "Generating boot.cmd..."
-cat << 'EOF' > "$MOUNT_POINT_BOOT/boot.cmd"
-setenv bootargs console=ttymxc1,115200 earlycon root=/dev/mmcblk1p2 rootwait rw
-load mmc 1:1 ${loadaddr} Image
-load mmc 1:1 ${fdt_addr} imx8mp-rfnm.dtb
-booti ${loadaddr} - ${fdt_addr}
-EOF
+# echo "Generating boot.cmd..."
+# cat << 'EOF' > "$MOUNT_POINT_BOOT/boot.cmd"
+# setenv bootargs console=ttymxc1,115200 earlycon root=/dev/mmcblk1p2 rootwait rw
+# load mmc 1:1 ${loadaddr} Image
+# load mmc 1:1 ${fdt_addr} imx8mp-rfnm.dtb
+# booti ${loadaddr} - ${fdt_addr}
+# EOF
 
-# Compile boot.scr if mkimage exists
-if command -v mkimage &> /dev/null; then
-    mkimage -C none -A arm -T script -d "$MOUNT_POINT_BOOT/boot.cmd" "$MOUNT_POINT_BOOT/boot.scr"
-    echo "boot.scr generated!"
-else
-    echo "WARNING: mkimage not found. You will need to type boot commands manually."
-fi
+# # Compile boot.scr if mkimage exists
+# if command -v mkimage &> /dev/null; then
+#     mkimage -C none -A arm -T script -d "$MOUNT_POINT_BOOT/boot.cmd" "$MOUNT_POINT_BOOT/boot.scr"
+#     echo "boot.scr generated!"
+# else
+#     echo "WARNING: mkimage not found. You will need to type boot commands manually."
+# fi
 
 umount "$MOUNT_POINT_BOOT"
 rmdir "$MOUNT_POINT_BOOT"

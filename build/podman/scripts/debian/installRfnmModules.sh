@@ -11,12 +11,8 @@ fi
 
 ABS_OUTPUT_DIR=$(realpath "$BUILD_DIR")
 
-#---- Get Kernel Version ----#
-KERNEL_VERSION=$(cd /work/build/imx8mp-kernel && make -s kernelrelease)
-echo "Kernel version: $KERNEL_VERSION"
-
 #---- Create Module Directory ----#
-MODULE_DIR="$ABS_OUTPUT_DIR/lib/modules/$KERNEL_VERSION/extra"
+MODULE_DIR="$ABS_OUTPUT_DIR/rfnm/kernel/"
 mkdir -p "$MODULE_DIR"
 
 #---- Install RFNM Driver Modules to Debian Root Filesystem ----#

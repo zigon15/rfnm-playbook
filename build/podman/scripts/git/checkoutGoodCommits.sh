@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 #-- Clean and checkout known good commits for all repositories
 cd /work/build/imx8mp-kernel
 git reset --hard 40192a2e6ccbc413deab8ff00aa424a6c1241065
@@ -25,6 +27,10 @@ cd /work/build/librfnm
 git reset --hard df85a47569370a3de7987b7c36d77e843ec7a41f
 git clean -fdx
 
+cd /work/build/imx-test
+git reset --hard 68243988862f0e66a37754b4dbe4e7833b903f0c
+git clean -fdx
+
 # #-- Apply required patches
 cd /work/build/imx8mp-kernel
 git apply /work/scripts/patches/imx8mp-kernel.patch
@@ -37,3 +43,6 @@ git apply /work/scripts/patches/la9310-driver.patch
 
 cd /work/build/la9310-freertos
 git apply /work/scripts/patches/la9310-freertos.patch
+
+cd /work/build/imx-test
+git apply /work/scripts/patches/imx-test.patch

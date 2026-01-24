@@ -1,0 +1,9 @@
+
+echo on > /sys/kernel/rfnm_primary/rx0/enable
+echo sma_a > /sys/kernel/rfnm_primary/rx0/path
+echo 314000000 > /sys/kernel/rfnm_primary/rx0/freq
+echo 100 > /sys/kernel/rfnm_primary/rx0/iq_lpf_bw
+echo 10 > /sys/kernel/rfnm_primary/rx0/gain
+
+echo 1 > /sys/kernel/rfnm_primary/rx0/apply
+

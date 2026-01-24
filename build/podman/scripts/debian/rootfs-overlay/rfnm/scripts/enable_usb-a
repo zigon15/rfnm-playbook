@@ -1,0 +1,5 @@
+# enable power to usb-a
+gpioset 2 6=0
+
+#enable host 
+echo "host" > /sys/kernel/debug/usb/38200000.usb/mode

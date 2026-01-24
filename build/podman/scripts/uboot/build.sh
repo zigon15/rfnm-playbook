@@ -23,7 +23,5 @@ make flash.bin \
     KCFLAGS="-Wno-int-conversion" \
     -j$(nproc)
 
-#---- Copy uBoot ----#
-
 
 

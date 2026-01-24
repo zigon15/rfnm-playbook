@@ -1,4 +1,4 @@
-FROM ubuntu:25.10
+FROM debian:trixie
 
 # Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -33,6 +33,13 @@ RUN apt-get update && apt-get install -y \
     cmake \
     gcc-arm-none-eabi \
     binutils-arm-none-eabi \
+    && rm -rf /var/lib/apt/lists/*
+
+# Enable arm64 architecture and install ARM64 dev packages
+RUN dpkg --add-architecture arm64 && \
+    apt-get update && apt-get install -y \
+    libasound2-dev:arm64 \
+    libdrm-dev:arm64 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependancies for creating Debian root filesystem
