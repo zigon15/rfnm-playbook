@@ -13,10 +13,6 @@ echo_step "Getting the repositories"
 cd /work/scripts/git
 ./cloneRepos.sh
 ./checkoutGoodCommits.sh
-
-# Build U-Boot
-echo_step "Building U-Boot"
-cd /work/scripts/uboot
 ./getFirmware.sh
 
 # Check firmware exists
@@ -26,6 +22,10 @@ if [ ! -d "/work/build/firmware/firmware-imx-8.16/" ]; then
 fi
 
 set -e
+
+# Build U-Boot
+echo_step "Building U-Boot"
+cd /work/scripts/uboot
 
 ./buildATF.sh
 ./build.sh
@@ -40,4 +40,5 @@ echo_step "Building the Debian Root Filesystem"
 cd /work/scripts/debian
 ./build.sh
 ./installKernelModules.sh
+./installRfnmModules.sh
 ./installFirmware.sh

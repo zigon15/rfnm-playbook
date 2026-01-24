@@ -6,6 +6,14 @@ cd /work/build/imx8mp-kernel/
 # Make config for i.MX8M
 make imx_v8_defconfig
 
+# Disable proprietary GPU driver, enable open-source etnaviv
+scripts/config --disable CONFIG_MXC_GPU_VIV
+scripts/config --enable CONFIG_DRM_ETNAVIV
+scripts/config --enable CONFIG_DRM_ETNAVIV_THERMAL
+
+# Apply config changes
+make olddefconfig
+
 # Build the kernel Image and Device Trees
 make -j$(nproc) Image dtbs
 

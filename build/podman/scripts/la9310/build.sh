@@ -8,5 +8,3 @@ export RFNM_BUILD_DIR="/work/build/"
 #---- Build ----#
 cd '/work/build/la9310-driver'
 make KCFLAGS="-Wno-int-conversion -w" -j$(nproc)
-# export CROSS_COMPILE_PATH = [path to cross compiler]
-# export PATH=$CROSS_COMPILE_PATH:$PATH  
