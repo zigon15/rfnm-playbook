@@ -11,3 +11,4 @@ make -j$(nproc) Image dtbs
 
 # Build the kernel modules
 make -j$(nproc) modules
+make modules_prepare

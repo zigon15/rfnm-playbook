@@ -1,4 +1,4 @@
 #!/bin/sh
 
-cd ../../../imx8mp-kernel/
+cd ../../../../imx8mp-kernel/
 git clean -fdx

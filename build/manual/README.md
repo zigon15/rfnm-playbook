@@ -17,3 +17,5 @@ The scripts assume that the follow repos are in the same root directory as this 
         ├── imx8mp-uboot/
         └── rfnm-playbook/
 ```
+
+These script don't apply the required patches to get uboot and the kernel to build so apply the patches found in the podman directory.

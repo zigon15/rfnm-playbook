@@ -1,0 +1,2311 @@
+From ca3a1b6a416b18165fd06ce24c5daecfc2979096 Mon Sep 17 00:00:00 2001
+From: Simon <simonzigon15@gmail.com>
+Date: Sat, 24 Jan 2026 10:23:07 +1030
+Subject: [PATCH] Removed granita
+
+---
+ kernel_driver/la9310rfnm/Makefile            |   2 +-
+ kernel_driver/la9310rfnm/rfnm_fe_granita0.c  | 923 -------------------
+ kernel_driver/la9310rfnm/rfnm_fe_granita0.h  | 233 -----
+ kernel_driver/la9310rfnm/rfnm_granita.h      |  19 -
+ kernel_driver/la9310rfnm/rfnm_granita_m.c    | 803 ----------------
+ kernel_driver/la9310rfnm/rfnm_granita_rffc.c | 266 ------
+ 6 files changed, 1 insertion(+), 2245 deletions(-)
+ delete mode 100644 kernel_driver/la9310rfnm/rfnm_fe_granita0.c
+ delete mode 100644 kernel_driver/la9310rfnm/rfnm_fe_granita0.h
+ delete mode 100644 kernel_driver/la9310rfnm/rfnm_granita.h
+ delete mode 100644 kernel_driver/la9310rfnm/rfnm_granita_m.c
+ delete mode 100644 kernel_driver/la9310rfnm/rfnm_granita_rffc.c
+
+diff --git a/kernel_driver/la9310rfnm/Makefile b/kernel_driver/la9310rfnm/Makefile
+index c483b20..2ece17d 100644
+--- a/kernel_driver/la9310rfnm/Makefile
++++ b/kernel_driver/la9310rfnm/Makefile
+@@ -46,7 +46,7 @@ rfnm_lime-objs += ../../LimeSuiteNG/embedded/lms7002m/privates.o
+ rfnm_breakout-objs := rfnm_breakout_m.o 
+ 
+ # comment out to disable granita module
+-obj-m += rfnm_granita.o 
++# obj-m += rfnm_granita.o
+ 
+ obj-m += rfnm_lime.o rfnm_breakout.o
+ 
+diff --git a/kernel_driver/la9310rfnm/rfnm_fe_granita0.c b/kernel_driver/la9310rfnm/rfnm_fe_granita0.c
+deleted file mode 100644
+index 52fa1e0..0000000
+--- a/kernel_driver/la9310rfnm/rfnm_fe_granita0.c
++++ /dev/null
+@@ -1,923 +0,0 @@
+-#include <linux/slab.h>
+-#include <linux/kernel.h>
+-#include <linux/device.h>
+-#include <linux/rfnm-shared.h>
+-#include "rfnm_fe_granita0.h"
+-#include "rfnm_fe_generic.h"
+-
+-
+-void granita0_fa_fm_notch(struct rfnm_dgb * dgb_dt, int en) {
+-	// enabling notch when not using the frequency will mess with the paths
+-	if(en) {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_8, 1);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_9, 0);
+-	} else {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_8, 0);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_9, 1);
+-	}
+-}
+-
+-void granita0_fa_filter_0_70(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_0_70\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_4, 1); // G1I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_5, 0); // G1I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_6, 0); // G1O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_7, 0); // G1O2
+-}
+-
+-void granita0_fa_filter_140_225(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_140_225\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_4, 1); // G1I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_5, 1); // G1I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_6, 0); // G1O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_7, 1); // G1O2
+-}
+-
+-void granita0_fa_filter_0_1000(struct rfnm_dgb * dgb_dt) { 
+-	//printk("granita0_filter_0_1000\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_4, 0); // G1I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_5, 1); // G1I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_6, 1); // G1O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_7, 1); // G1O2
+-}
+-
+-void granita0_fa_filter_420_700(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_420_700\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_4, 0); // G1I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_5, 0); // G1I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_6, 1); // G1O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_7, 0); // G1O2
+-}
+-
+-void granita0_fa_filter_700_1000(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_700_1000\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_3, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G1UL, 1);
+-}
+-
+-void granita0_fa_filter_950_3000(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_950_3000\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_5, 1); // G2I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_6, 0); // G2I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_7, 0); // G2O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_8, 0); // G2O2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_9, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G2L, 1);
+-}
+-
+-void granita0_fa_filter_1805_2200(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_1805_2200\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_5, 1); // G2I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_6, 1); // G2I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_7, 0); // G2O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_8, 1); // G2O2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_9, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G2L, 1);
+-}
+-
+-void granita0_fa_filter_2300_2690(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_2300_2690\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_5, 0); // G2I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_6, 1); // G2I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_7, 1); // G2O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_8, 1); // G2O2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_9, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G2L, 1);
+-}
+-
+-void granita0_fa_filter_1574_1605(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_1574_1605\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_4, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_5, 0); // G2I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_6, 0); // G2I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_7, 1); // G2O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_8, 0); // G2O2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_9, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G2PL1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G2L, 1);
+-}
+-
+-void granita0_fa_filter_1166_1229(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_1166_1229\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_3, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_4, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_5, 0); // G2I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_6, 0); // G2I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_7, 1); // G2O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_8, 0); // G2O2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_9, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G2PL2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G2L, 1);
+-}
+-
+-void granita0_fa_filter_5150_7125(struct rfnm_dgb * dgb_dt) {
+-	printk("granita0_filter_5150_7125\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G3L, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_3, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_6, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_7, 1);
+-}
+-
+-void granita0_fa_filter_4900_5850(struct rfnm_dgb * dgb_dt) {
+-	printk("granita0_filter_4900_5850\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G3L, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_3, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_6, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_7, 0);
+-}
+-
+-void granita0_fa_filter_4400_5000(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_4400_5000\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G3L, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_4, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_5, 1);
+-}
+-
+-void granita0_fa_filter_3200_4200(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_3200_4200\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G3L, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_4, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_5, 1);
+-}
+-
+-void granita0_fa_filter_3000_5000(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_3000_5000\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_G3L, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_3, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_4, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FA_5, 0);
+-}
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-void granita0_fb_fm_notch(struct rfnm_dgb * dgb_dt, int en) {
+-	// enabling notch when not using the frequency will mess with the paths
+-	if(en) {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_8, 1);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_9, 0);
+-	} else {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_8, 0);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_9, 1);
+-	}
+-}
+-
+-void granita0_fb_filter_0_70(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_0_70\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_4, 1); // G1I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_5, 0); // G1I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_6, 0); // G1O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_7, 0); // G1O2
+-}
+-
+-void granita0_fb_filter_140_225(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_140_225\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_4, 1); // G1I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_5, 1); // G1I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_6, 0); // G1O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_7, 1); // G1O2
+-}
+-
+-void granita0_fb_filter_0_1000(struct rfnm_dgb * dgb_dt) { 
+-	//printk("granita0_filter_0_1000\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_4, 0); // G1I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_5, 1); // G1I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_6, 1); // G1O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_7, 1); // G1O2
+-}
+-
+-void granita0_fb_filter_420_700(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_420_700\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_4, 0); // G1I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_5, 0); // G1I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_6, 1); // G1O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_7, 0); // G1O2
+-}
+-
+-void granita0_fb_filter_700_1000(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_700_1000\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_3, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G1UL, 1);
+-}
+-
+-void granita0_fb_filter_950_3000(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_950_3000\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_5, 1); // G2I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_6, 0); // G2I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_7, 0); // G2O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_8, 0); // G2O2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_9, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G2L, 1);
+-}
+-
+-void granita0_fb_filter_1805_2200(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_1805_2200\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_5, 1); // G2I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_6, 1); // G2I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_7, 0); // G2O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_8, 1); // G2O2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_9, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G2L, 1);
+-}
+-
+-void granita0_fb_filter_2300_2690(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_2300_2690\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_5, 0); // G2I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_6, 1); // G2I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_7, 1); // G2O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_8, 1); // G2O2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_9, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G2L, 1);
+-}
+-
+-void granita0_fb_filter_1574_1605(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_1574_1605\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_4, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_5, 0); // G2I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_6, 0); // G2I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_7, 1); // G2O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_8, 0); // G2O2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_9, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G2PL1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G2L, 1);
+-}
+-
+-void granita0_fb_filter_1166_1229(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_1166_1229\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_3, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_4, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_5, 0); // G2I1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_6, 0); // G2I2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_7, 1); // G2O1
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_8, 0); // G2O2
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_9, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G2PL2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G2L, 1);
+-}
+-
+-void granita0_fb_filter_5150_7125(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_5150_7125\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G3L, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_3, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_6, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_7, 1);
+-}
+-
+-void granita0_fb_filter_4900_5850(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_4900_5850\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G3L, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_3, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_6, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_7, 0);
+-}
+-
+-void granita0_fb_filter_4400_5000(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_4400_5000\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G3L, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_4, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_5, 1);
+-}
+-
+-void granita0_fb_filter_3200_4200(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_3200_4200\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G3L, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_3, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_4, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_5, 1);
+-}
+-
+-void granita0_fb_filter_3000_5000(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_filter_3000_5000\n");
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_G3L, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_3, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_4, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FB_5, 0);
+-}
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-void granita0_rffc_rx_a(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RAI, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RTA, 1);
+-}
+-
+-void granita0_rffc_rx_b(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RBI, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RTB, 1);
+-}
+-
+-
+-
+-void granita0_rffc_rx_a_1166_1229(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_rffc_rx_a_1166_1229\n");
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAO1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAO2, 1);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAI1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAI2, 1);
+-}
+-
+-void granita0_rffc_rx_a_1574_1605(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_rffc_rx_a_1574_1605\n");
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAO1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAO2, 1);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAI1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAI2, 1);
+-}
+-
+-void granita0_rffc_rx_a_1574_1576(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_rffc_rx_a_1574_1576\n");
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAO1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAO2, 0);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAI1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAI2, 0);
+-}
+-
+-
+-
+-
+-
+-void granita0_rffc_rx_b_1166_1229(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_rffc_rx_b_1166_1229\n");
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFBO1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFBO2, 1);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFBI1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFBI2, 1);
+-}
+-
+-void granita0_rffc_rx_b_1574_1605(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_rffc_rx_b_1574_1605\n");
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAO1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAO2, 1);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAI1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFAI2, 1);
+-}
+-
+-void granita0_rffc_rx_b_1574_1576(struct rfnm_dgb * dgb_dt) {
+-	//printk("granita0_rffc_rx_b_1574_1576\n");
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFBO1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFBO2, 0);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFBI1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_FC_RFBI2, 0);
+-}
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-
+-void granita0_ant_a_through(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_A, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TA, 1);
+-}
+-
+-void granita0_ant_a_embeded_lf(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AO1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AO2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TA, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_OAS, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_OAI, 0);
+-}
+-
+-void granita0_ant_a_embeded_hf(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AO1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AO2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TA, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_OAS, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_OAI, 1);
+-}
+-
+-void granita0_ant_a_attn_12(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_A, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AI1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AI2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AO1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AO2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TA, 0);
+-}
+-
+-void granita0_ant_a_attn_24(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_A, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AI1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AI2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AO1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AO2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TA, 0);
+-}
+-
+-void granita0_ant_a_crossover(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_A, 1);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AI1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AI2, 0);
+-	
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_H, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TH, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TI, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TS, 1);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BO1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BO2, 0);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TB, 1);
+-}
+-
+-void granita0_ant_a_tx(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_T, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TH, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_H, 1);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AI1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AI2, 0);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_A, 1);
+-}
+-
+-void granita0_ant_b_through(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_B, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TB, 0);
+-}
+-
+-void granita0_ant_b_embeded_lf(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BO1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BO2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TB, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_OAS, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_OAI, 0);
+-}
+-
+-void granita0_ant_b_embeded_hf(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BO1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BO2, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TB, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_OAS, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_OAI, 1);
+-}
+-
+-void granita0_ant_b_attn_12(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_B, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BI1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BI2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BO1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BO2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TB, 1);
+-}
+-
+-void granita0_ant_b_attn_24(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_B, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BI1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BI2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BO1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BO2, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TB, 1);
+-}
+-
+-void granita0_ant_b_crossover(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_B, 0);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BI1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BI2, 0);
+-	
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_H, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TH, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TI, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TS, 0);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AO1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AO2, 0);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TA, 0);
+-}
+-
+-void granita0_ant_b_tx(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_T, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TH, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_H, 0);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BI1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BI2, 0);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_B, 0);
+-}
+-
+-
+-
+-
+-
+-
+-
+-void granita0_tx_loopback(struct rfnm_dgb * dgb_dt, int enable_weak_amplifier) {
+-	// this is the only function that can enable
+-	// loopback. it also disables both amplifiers.
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_T, 1);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL1I, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL1O, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_PA_S1_EN, 1);
+-	
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL2I, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL2O, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_PA_S2_EN, 1);
+-	
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T24I, 1);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T12I, 1);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T6I, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T6O, 0);
+-
+-
+-	if(enable_weak_amplifier) {
+-		// enable second 20 dBm amplifier
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL2I, 0);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL2O, 1);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_PA_S2_EN, 0);
+-
+-		
+-		//rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T24I, 0);
+-
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T12I, 0);
+-
+-		// enable 6 dB attenuation
+-		//rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T6I, 0);
+-		//rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T6O, 1);		
+-	}
+-	
+-}
+-
+-void granita0_ant_a_loopback(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TI, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TS, 0);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AO1, 1);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_AO2, 0);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TA, 0);
+-}
+-
+-void granita0_ant_b_loopback(struct rfnm_dgb * dgb_dt) {
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TI, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TS, 1);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BO1, 0);
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_BO2, 0);
+-
+-	rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_ANT_TB, 1);	
+-}
+-
+-
+-
+-
+-
+-
+-
+-#define RFNM_GRANITA0_TX_BAND_1 (1)
+-#define RFNM_GRANITA0_TX_BAND_2 (2)
+-#define RFNM_GRANITA0_TX_BAND_3 (3)
+-#define RFNM_GRANITA0_TX_BAND_4 (4)
+-
+-void granita0_tx_band(struct rfnm_dgb * dgb_dt, int band) {
+-
+-	switch(band) {
+-		case RFNM_GRANITA0_TX_BAND_1:
+-			rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TF1, 0);
+-			rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TF2, 0);
+-			rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TRO, 0);
+-			break;
+-		case RFNM_GRANITA0_TX_BAND_2:
+-			rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TF1, 0);
+-			rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TF2, 1);
+-			rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TRI, 1);
+-			break;
+-		case RFNM_GRANITA0_TX_BAND_3:
+-			rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TF1, 1);
+-			rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TF2, 1);
+-			break;
+-		case RFNM_GRANITA0_TX_BAND_4:
+-			rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TF1, 1);
+-			rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TF2, 0);
+-			break;
+-	}
+-
+-}
+-
+-
+-
+-int16_t granita0_tx_manual_table [][2] = {
+-	// all PA off, all attenuation off
+-	{1, 2000},
+-	{10000, 2000}, // above max freq as last one
+-};
+-
+-int granita0_tx_power(struct rfnm_dgb * dgb_dt, int freq, int target, int is_loopback) {
+-	target = target * 100;
+-
+-	int cur_power = 0;
+-	int i = 0;
+-	//while(granita0_tx_manual_table[i][0] < freq) {
+-	//	cur_power = -granita0_tx_manual_table[i][1];
+-	//	i++;
+-	//}
+-
+-	// if any of the receive or the transmit paths are in loopback mode
+-	// disable both amplifiers, just to make sure
+-
+-	if(!is_loopback && target > cur_power) {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL1I, 0);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL1O, 1);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_PA_S1_EN, 0);
+-		cur_power += 2000;
+-	} else {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL1I, 1);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL1O, 0);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_PA_S1_EN, 1);
+-	}
+-	
+-	if(!is_loopback && target > cur_power) {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL2I, 0);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL2O, 1);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_PA_S2_EN, 0);
+-		cur_power += 2000;
+-	} else {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL2I, 1);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_TL2O, 0);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_PA_S2_EN, 1);
+-	}
+-	
+-	if(target < (cur_power - 2400)) {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T24I, 0);
+-		//rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T24O, 1);
+-		cur_power -= 2400;
+-	} else {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T24I, 1);
+-		//rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T24O, 0);
+-	}
+-	
+-	if(target < (cur_power - 1200)) {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T12I, 0);
+-		//rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T12O, 1);
+-		cur_power -= 1200;
+-	} else {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T12I, 1);
+-		//rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T12O, 0);
+-	}
+-	
+-	if(target < (cur_power - 600)) {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T6I, 0);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T6O, 1);
+-		cur_power -= 600;
+-	} else {
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T6I, 1);
+-		rfnm_fe_srb(dgb_dt, RFNM_GRANITA0_TX_T6O, 0);
+-	}
+-	
+-	//printk("%d vs %d", target,  cur_power);
+-	if(target > cur_power) {
+-		return abs(target - cur_power);
+-	} else {
+-		return -abs(target - cur_power);
+-	}
+-}
+-
+-
+-void granita0_tx_freqsel(struct rfnm_dgb * dgb_dt, int freq) {
+-    if(freq <= 1500) {
+-        granita0_tx_band(dgb_dt, RFNM_GRANITA0_TX_BAND_1);
+-    } else if(freq <= 3140) {
+-        granita0_tx_band(dgb_dt, RFNM_GRANITA0_TX_BAND_2);
+-    } else if(freq < 5100) {
+-        granita0_tx_band(dgb_dt, RFNM_GRANITA0_TX_BAND_3);
+-    } else {
+-        granita0_tx_band(dgb_dt, RFNM_GRANITA0_TX_BAND_4);
+-    }
+-}
+-
+-void granita0_fa(struct rfnm_dgb * dgb_dt, int freq, enum rfnm_fm_notch fm_notch) {
+-
+-	// hardware bug
+-	fm_notch = RFNM_FM_NOTCH_OFF;
+-    
+-	if(fm_notch == RFNM_FM_NOTCH_AUTO) {
+-		granita0_fa_fm_notch(dgb_dt, 1);
+-	} else if(fm_notch == RFNM_FM_NOTCH_ON) {
+-		granita0_fa_fm_notch(dgb_dt, 1);
+-	} else if(fm_notch == RFNM_FM_NOTCH_OFF) {
+-		granita0_fa_fm_notch(dgb_dt, 0);
+-	}
+-
+-    if(freq < 600) {
+-        if(freq < 70) {
+-            granita0_fa_filter_0_70(dgb_dt);
+-        } else if(freq >= 140 && freq <= 225) {
+-            granita0_fa_filter_140_225(dgb_dt);
+-        } else if(freq >= 420) {
+-            granita0_fa_filter_420_700(dgb_dt);
+-        } else {
+-            granita0_fa_filter_0_1000(dgb_dt);
+-			if(freq > 60 && freq < 130 && fm_notch == RFNM_FM_NOTCH_AUTO) {
+-				granita0_fa_fm_notch(dgb_dt, 0);
+-			}
+-        }
+-    } else if(freq < 1000) {
+-        granita0_fa_filter_700_1000(dgb_dt);
+-    } else if(freq < 3000) {
+-        if(freq >= 1166 && freq <= 1229) {
+-            granita0_fa_filter_1166_1229(dgb_dt);
+-        } else if(freq >= 1574 && freq <= 1605) {
+-            granita0_fa_filter_1574_1605(dgb_dt);
+-        } else if(freq >= 1805 && freq <= 2200) {
+-            granita0_fa_filter_1805_2200(dgb_dt);
+-        } else if(freq >= 2300 && freq <= 2690) {
+-            granita0_fa_filter_2300_2690(dgb_dt);
+-        } else {
+-            granita0_fa_filter_950_3000(dgb_dt);
+-        }
+-    } else if(freq < 5000) {
+-        if(freq >= 3200 && freq <= 4200) {
+-            granita0_fa_filter_3200_4200(dgb_dt);
+-        } else if(freq >= 4400 && freq <= 5000) {
+-            granita0_fa_filter_4400_5000(dgb_dt);
+-        } else {
+-            granita0_fa_filter_3000_5000(dgb_dt);
+-        }
+-    } else if(freq < 5850) {
+-		granita0_fa_filter_4900_5850(dgb_dt);
+-    } else {
+-		granita0_fa_filter_5150_7125(dgb_dt);
+-	}
+-}
+-
+-void granita0_fb(struct rfnm_dgb * dgb_dt, int freq, enum rfnm_fm_notch fm_notch) {
+-
+-	// hardware bug
+-	fm_notch = RFNM_FM_NOTCH_OFF;
+-    
+-	if(fm_notch == RFNM_FM_NOTCH_AUTO) {
+-		granita0_fb_fm_notch(dgb_dt, 1);
+-	} else if(fm_notch == RFNM_FM_NOTCH_ON) {
+-		granita0_fb_fm_notch(dgb_dt, 1);
+-	} else if(fm_notch == RFNM_FM_NOTCH_OFF) {
+-		granita0_fb_fm_notch(dgb_dt, 0);
+-	}
+-
+-    if(freq < 600) {
+-        if(freq < 70) {
+-            granita0_fb_filter_0_70(dgb_dt);
+-        } else if(freq >= 140 && freq <= 225) {
+-            granita0_fb_filter_140_225(dgb_dt);
+-        } else if(freq >= 420) {
+-            granita0_fb_filter_420_700(dgb_dt);
+-        } else {
+-            granita0_fb_filter_0_1000(dgb_dt);
+-            if(freq > 60 && freq < 130 && fm_notch == RFNM_FM_NOTCH_AUTO) {
+-				granita0_fb_fm_notch(dgb_dt, 0);
+-			}
+-        }
+-    } else if(freq < 1000) {
+-        granita0_fb_filter_700_1000(dgb_dt);
+-    } else if(freq < 3000) {
+-        if(freq >= 1166 && freq <= 1229) {
+-            granita0_fb_filter_1166_1229(dgb_dt);
+-        } else if(freq >= 1574 && freq <= 1605) {
+-            granita0_fb_filter_1574_1605(dgb_dt);
+-        } else if(freq >= 1805 && freq <= 2200) {
+-            granita0_fb_filter_1805_2200(dgb_dt);
+-        } else if(freq >= 2300 && freq <= 2690) {
+-            granita0_fb_filter_2300_2690(dgb_dt);
+-        } else {
+-            granita0_fb_filter_950_3000(dgb_dt);
+-        }
+-    } else if(freq < 5000) {
+-        if(freq >= 3200 && freq <= 4200) {
+-            granita0_fb_filter_3200_4200(dgb_dt);
+-        } else if(freq >= 4400 && freq <= 5000) {
+-            granita0_fb_filter_4400_5000(dgb_dt);
+-        } else {
+-            granita0_fb_filter_3000_5000(dgb_dt);
+-        }
+-    } else if(freq < 5850) {
+-		granita0_fb_filter_4900_5850(dgb_dt);
+-    } else {
+-		granita0_fb_filter_5150_7125(dgb_dt);
+-	}
+-}
+-
+diff --git a/kernel_driver/la9310rfnm/rfnm_fe_granita0.h b/kernel_driver/la9310rfnm/rfnm_fe_granita0.h
+deleted file mode 100644
+index c291b7b..0000000
+--- a/kernel_driver/la9310rfnm/rfnm_fe_granita0.h
++++ /dev/null
+@@ -1,233 +0,0 @@
+-/*
+- * lime.h
+- *
+- *  Created on: Jul 26, 2023
+- *      Author: davide
+- */
+-
+-#ifndef RFNM_GRANITA0_H_
+-#define RFNM_GRANITA0_H_
+-
+-
+-
+-
+-// fa: frontend-a
+-// fb: frontend-b
+-
+-void granita0_fa_fm_notch(struct rfnm_dgb * dgb_dt, int en);
+-void granita0_fa_filter_0_70(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_140_225(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_0_1000(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_420_700(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_700_1000(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_950_3000(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_1805_2200(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_2300_2690(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_1574_1605(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_1166_1229(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_5150_7125(struct rfnm_dgb * dgb_dt) ;
+-void granita0_fa_filter_4900_5850(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_4400_5000(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_3200_4200(struct rfnm_dgb * dgb_dt);
+-void granita0_fa_filter_3000_5000(struct rfnm_dgb * dgb_dt);
+-
+-
+-
+-
+-void granita0_fb_fm_notch(struct rfnm_dgb * dgb_dt, int en);
+-void granita0_fb_filter_0_70(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_140_225(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_0_1000(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_420_700(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_700_1000(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_950_3000(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_1805_2200(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_2300_2690(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_1574_1605(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_1166_1229(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_5150_7125(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_4900_5850(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_4400_5000(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_3200_4200(struct rfnm_dgb * dgb_dt);
+-void granita0_fb_filter_3000_5000(struct rfnm_dgb * dgb_dt);
+-
+-
+-
+-
+-
+-
+-
+-void granita0_rffc_rx_a(struct rfnm_dgb * dgb_dt);
+-void granita0_rffc_rx_b(struct rfnm_dgb * dgb_dt);
+-
+-
+-void granita0_rffc_rx_a_1166_1229(struct rfnm_dgb * dgb_dt);
+-void granita0_rffc_rx_a_1574_1605(struct rfnm_dgb * dgb_dt);
+-void granita0_rffc_rx_a_1574_1576(struct rfnm_dgb * dgb_dt);
+-
+-
+-void granita0_rffc_rx_b_1166_1229(struct rfnm_dgb * dgb_dt);
+-void granita0_rffc_rx_b_1574_1605(struct rfnm_dgb * dgb_dt);
+-void granita0_rffc_rx_b_1574_1576(struct rfnm_dgb * dgb_dt);
+-
+-
+-void granita0_ant_a_loopback(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_a_through(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_a_embeded_lf(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_a_embeded_hf(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_a_attn_12(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_a_attn_24(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_a_crossover(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_a_tx(struct rfnm_dgb * dgb_dt);
+-
+-void granita0_ant_b_loopback(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_b_through(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_b_embeded_lf(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_b_embeded_hf(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_b_attn_12(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_b_attn_24(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_b_crossover(struct rfnm_dgb * dgb_dt);
+-void granita0_ant_b_tx(struct rfnm_dgb * dgb_dt);
+-
+-void granita0_tx_loopback(struct rfnm_dgb * dgb_dt, int enable_weak_amplifier);
+-
+-void granita0_tx_band(struct rfnm_dgb * dgb_dt, int band);
+-int granita0_tx_power(struct rfnm_dgb * dgb_dt, int freq, int target, int is_loopback);
+-
+-
+-
+-void granita0_tx_freqsel(struct rfnm_dgb * dgb_dt, int freq);
+-
+-void granita0_fa(struct rfnm_dgb * dgb_dt, int freq, enum rfnm_fm_notch);
+-void granita0_fb(struct rfnm_dgb * dgb_dt, int freq, enum rfnm_fm_notch);
+-
+-
+-
+-#define RFNM_GRANITA0_NUM_LATCHES_1 3
+-#define RFNM_GRANITA0_NUM_LATCHES_2 2
+-#define RFNM_GRANITA0_NUM_LATCHES_3 2
+-#define RFNM_GRANITA0_NUM_LATCHES_4 2
+-#define RFNM_GRANITA0_NUM_LATCHES_5 2
+-#define RFNM_GRANITA0_NUM_LATCHES_6 0
+-
+-#define RFNM_GRANITA0_NUM_LATCHES (int[]){0, RFNM_GRANITA0_NUM_LATCHES_1, RFNM_GRANITA0_NUM_LATCHES_2, RFNM_GRANITA0_NUM_LATCHES_3, RFNM_GRANITA0_NUM_LATCHES_4, RFNM_GRANITA0_NUM_LATCHES_5, RFNM_GRANITA0_NUM_LATCHES_6}
+-
+-#define RFNM_LATCH1 (1 << 28)
+-#define RFNM_LATCH2 (2 << 28)
+-#define RFNM_LATCH3 (3 << 28)
+-#define RFNM_LATCH4 (4 << 28)
+-#define RFNM_LATCH5 (5 << 28)
+-#define RFNM_LATCH6 (6 << 28)
+-
+-#define RFNM_LATCH_SEQ1 (1 << 24)
+-#define RFNM_LATCH_SEQ2 (2 << 24)
+-#define RFNM_LATCH_SEQ3 (3 << 24)
+-
+-#define RFNM_LATCH_Q0 (0 << 16)
+-#define RFNM_LATCH_Q1 (1 << 16)
+-#define RFNM_LATCH_Q2 (2 << 16)
+-#define RFNM_LATCH_Q3 (3 << 16)
+-#define RFNM_LATCH_Q4 (4 << 16)
+-#define RFNM_LATCH_Q5 (5 << 16)
+-#define RFNM_LATCH_Q6 (6 << 16)
+-#define RFNM_LATCH_Q7 (7 << 16)
+-
+-
+-#define RFNM_GRANITA0_ANT_BI1 (RFNM_LATCH1 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q0)
+-#define RFNM_GRANITA0_ANT_TB (RFNM_LATCH1 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q1)
+-#define RFNM_GRANITA0_ANT_BI2 (RFNM_LATCH1 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q2)
+-#define RFNM_GRANITA0_ANT_B (RFNM_LATCH1 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q3)
+-#define RFNM_GRANITA0_ANT_BO2 (RFNM_LATCH1 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q4)
+-#define RFNM_GRANITA0_ANT_BO1 (RFNM_LATCH1 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q5)
+-#define RFNM_GRANITA0_ANT_TS (RFNM_LATCH1 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q6)
+-#define RFNM_GRANITA0_ANT_TI (RFNM_LATCH1 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q7)
+-
+-#define RFNM_GRANITA0_ANT_TH (RFNM_LATCH1 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q0)
+-#define RFNM_GRANITA0_ANT_H (RFNM_LATCH1 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q1)
+-#define RFNM_GRANITA0_ANT_AO2 (RFNM_LATCH1 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q2)
+-#define RFNM_GRANITA0_ANT_AO1 (RFNM_LATCH1 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q3)
+-#define RFNM_GRANITA0_ANT_AI1 (RFNM_LATCH1 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q4)
+-#define RFNM_GRANITA0_ANT_AI2 (RFNM_LATCH1 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q5)
+-#define RFNM_GRANITA0_ANT_A (RFNM_LATCH1 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q6)
+-#define RFNM_GRANITA0_ANT_TA (RFNM_LATCH1 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q7)
+-
+-#define RFNM_GRANITA0_ANT_OAS (RFNM_LATCH1 | RFNM_LATCH_SEQ3 | RFNM_LATCH_Q3)
+-#define RFNM_GRANITA0_ANT_T (RFNM_LATCH1 | RFNM_LATCH_SEQ3 | RFNM_LATCH_Q4)
+-#define RFNM_GRANITA0_GR_TX (RFNM_LATCH1 | RFNM_LATCH_SEQ3 | RFNM_LATCH_Q5)
+-#define RFNM_GRANITA0_GR_RX (RFNM_LATCH1 | RFNM_LATCH_SEQ3 | RFNM_LATCH_Q6)
+-#define RFNM_GRANITA0_ANT_OAI (RFNM_LATCH1 | RFNM_LATCH_SEQ3 | RFNM_LATCH_Q7)
+-
+-
+-#define RFNM_GRANITA0_FA_5 (RFNM_LATCH2 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q0)
+-#define RFNM_GRANITA0_FA_1 (RFNM_LATCH2 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q1)
+-#define RFNM_GRANITA0_FA_4 (RFNM_LATCH2 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q2)
+-#define RFNM_GRANITA0_FA_2 (RFNM_LATCH2 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q3)
+-#define RFNM_GRANITA0_FA_G2PL1 (RFNM_LATCH2 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q4)
+-#define RFNM_GRANITA0_FA_G2PL2 (RFNM_LATCH2 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q5)
+-#define RFNM_GRANITA0_FA_3 (RFNM_LATCH2 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q6)
+-#define RFNM_GRANITA0_FA_G3L (RFNM_LATCH2 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q7)
+-
+-#define RFNM_GRANITA0_FA_G1BL (RFNM_LATCH2 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q0)
+-#define RFNM_GRANITA0_FA_7 (RFNM_LATCH2 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q1)
+-#define RFNM_GRANITA0_FA_6 (RFNM_LATCH2 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q2)
+-#define RFNM_GRANITA0_FA_G2L (RFNM_LATCH2 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q3)
+-#define RFNM_GRANITA0_FA_8 (RFNM_LATCH2 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q4)
+-#define RFNM_GRANITA0_FA_G1UL (RFNM_LATCH2 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q5)
+-#define RFNM_GRANITA0_FA_9 (RFNM_LATCH2 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q6)
+-
+-
+-#define RFNM_GRANITA0_FB_9 (RFNM_LATCH3 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q1)
+-#define RFNM_GRANITA0_FB_G1BL (RFNM_LATCH3 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q2)
+-#define RFNM_GRANITA0_FB_G2L (RFNM_LATCH3 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q3)
+-#define RFNM_GRANITA0_FB_4 (RFNM_LATCH3 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q4)
+-#define RFNM_GRANITA0_FB_5 (RFNM_LATCH3 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q5)
+-#define RFNM_GRANITA0_FB_3 (RFNM_LATCH3 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q6)
+-#define RFNM_GRANITA0_FB_2 (RFNM_LATCH3 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q7)
+-
+-#define RFNM_GRANITA0_FB_G3L (RFNM_LATCH3 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q0)
+-#define RFNM_GRANITA0_FB_1 (RFNM_LATCH3 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q1)
+-#define RFNM_GRANITA0_FB_G2PL1 (RFNM_LATCH3 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q2)
+-#define RFNM_GRANITA0_FB_7 (RFNM_LATCH3 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q3)
+-#define RFNM_GRANITA0_FB_8 (RFNM_LATCH3 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q4)
+-#define RFNM_GRANITA0_FB_6 (RFNM_LATCH3 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q5)
+-#define RFNM_GRANITA0_FB_G1UL (RFNM_LATCH3 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q6)
+-#define RFNM_GRANITA0_FB_G2PL2 (RFNM_LATCH3 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q7)
+-
+-
+-#define RFNM_GRANITA0_TX_TF1 (RFNM_LATCH4 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q0)
+-#define RFNM_GRANITA0_TX_TFB2 (RFNM_LATCH4 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q1)
+-#define RFNM_GRANITA0_TX_TFB1 (RFNM_LATCH4 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q2)
+-#define RFNM_GRANITA0_TX_T12I (RFNM_LATCH4 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q3)
+-#define RFNM_GRANITA0_TX_T24I (RFNM_LATCH4 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q4)
+-#define RFNM_GRANITA0_TX_TRI (RFNM_LATCH4 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q5)
+-#define RFNM_GRANITA0_TX_TRO (RFNM_LATCH4 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q6)
+-#define RFNM_GRANITA0_TX_TF2 (RFNM_LATCH4 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q7)
+-
+-#define RFNM_GRANITA0_TX_T6O (RFNM_LATCH4 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q0)
+-#define RFNM_GRANITA0_TX_T6I (RFNM_LATCH4 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q1)
+-#define RFNM_GRANITA0_TX_TL1O (RFNM_LATCH4 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q2)
+-#define RFNM_GRANITA0_TX_TL1I (RFNM_LATCH4 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q3)
+-#define RFNM_GRANITA0_TX_PA_S1_EN (RFNM_LATCH4 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q4)
+-#define RFNM_GRANITA0_TX_TL2I (RFNM_LATCH4 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q5)
+-#define RFNM_GRANITA0_TX_TL2O (RFNM_LATCH4 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q6)
+-#define RFNM_GRANITA0_TX_PA_S2_EN (RFNM_LATCH4 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q7)
+-
+-
+-#define RFNM_GRANITA0_FC_RTI (RFNM_LATCH5 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q1)
+-#define RFNM_GRANITA0_FC_RFBI2 (RFNM_LATCH5 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q2)
+-#define RFNM_GRANITA0_FC_RFBI1 (RFNM_LATCH5 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q3)
+-#define RFNM_GRANITA0_FC_RFBO2 (RFNM_LATCH5 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q4)
+-#define RFNM_GRANITA0_FC_RFBO1 (RFNM_LATCH5 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q5)
+-#define RFNM_GRANITA0_FC_RTB (RFNM_LATCH5 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q6)
+-#define RFNM_GRANITA0_FC_RAI (RFNM_LATCH5 | RFNM_LATCH_SEQ1 | RFNM_LATCH_Q7)
+-
+-#define RFNM_GRANITA0_FC_RFAO1 (RFNM_LATCH5 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q1)
+-#define RFNM_GRANITA0_FC_RFAI2 (RFNM_LATCH5 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q2)
+-#define RFNM_GRANITA0_FC_RFAI1 (RFNM_LATCH5 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q3)
+-#define RFNM_GRANITA0_FC_RFAO2 (RFNM_LATCH5 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q4)
+-#define RFNM_GRANITA0_FC_RBI (RFNM_LATCH5 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q5)
+-#define RFNM_GRANITA0_FC_RTA (RFNM_LATCH5 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q6)
+-#define RFNM_GRANITA0_FC_RTO (RFNM_LATCH5 | RFNM_LATCH_SEQ2 | RFNM_LATCH_Q7)
+-
+-
+-#endif 
+\ No newline at end of file
+diff --git a/kernel_driver/la9310rfnm/rfnm_granita.h b/kernel_driver/la9310rfnm/rfnm_granita.h
+deleted file mode 100644
+index 301182c..0000000
+--- a/kernel_driver/la9310rfnm/rfnm_granita.h
++++ /dev/null
+@@ -1,19 +0,0 @@
+-/* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0)
+- * Copyright 2017, 2021-2022 NXP
+- */
+-
+-#ifndef __LA9310_RFNM_GRANITA_H__
+-#define __LA9310_RFNM_GRANITA_H__
+-
+-#define RFNM_RFFC2071_REGS_NUM 31
+-#define RFNM_RFFC2071_REF_FREQ 30720000
+-#define RFNM_RFFC2071_LO_MAX 5400000000
+-
+-extern void rfnm_rffc_init(struct rfnm_dgb *);
+-extern void rfnm_rffc_deinit(struct rfnm_dgb *);
+-extern void rfnm_rffc_disable(struct rfnm_dgb *);
+-extern void rfnm_rffc_enable(struct rfnm_dgb *);
+-extern uint64_t rfnm_rffc_set_freq(struct rfnm_dgb *, uint64_t freq_hz);
+-
+-
+-#endif
+diff --git a/kernel_driver/la9310rfnm/rfnm_granita_m.c b/kernel_driver/la9310rfnm/rfnm_granita_m.c
+deleted file mode 100644
+index b1a2261..0000000
+--- a/kernel_driver/la9310rfnm/rfnm_granita_m.c
++++ /dev/null
+@@ -1,803 +0,0 @@
+-#include <linux/irq.h>
+-#include <linux/interrupt.h>
+-#include <linux/kthread.h>
+-#include <linux/module.h>
+-#include <linux/dma-mapping.h>
+-#include <linux/dma-mapping.h>
+-#include <la9310_base.h>
+-//#include "rfnm.h"
+-//#include "rfnm_callback.h"
+-#include <asm/cacheflush.h>
+-
+-#include <linux/dma-direct.h>
+-#include <linux/dma-map-ops.h>
+-#include <linux/dma-mapping.h>
+-
+-
+-#include <linux/slab.h>
+-#include <linux/kernel.h>
+-#include <linux/dmaengine.h>
+-#include <linux/dma-mapping.h>
+-#include <linux/spinlock.h>
+-#include <linux/err.h>
+-#include <linux/module.h>
+-#include <linux/list.h>
+-
+-#include <linux/usb/ch9.h>
+-#include <linux/usb/gadget.h>
+-
+-
+-#include <linux/slab.h>
+-#include <linux/kernel.h>
+-#include <linux/device.h>
+-#include <linux/module.h>
+-#include <linux/usb/composite.h>
+-#include <linux/err.h>
+-
+-#include <linux/delay.h>
+-
+-#include <linux/of.h>
+-#include <linux/platform_device.h>
+-#include <linux/spi/spi.h>
+-#include <linux/delay.h>
+-
+-#include <linux/rfnm-shared.h>
+-#include <linux/rfnm-gpio.h>
+-
+-#include "rfnm_fe_generic.h"
+-#include "rfnm_fe_granita0.h"
+-
+-#include "SiSystem.h"
+-#include "SiIceWing_parser.h"
+-#include "SiIceWing_Core.h"
+-#include "SiDrv.h"
+-
+-#include <linux/i2c.h>
+-
+-//#include "fe_generic.h"
+-//#include "fe_granita.h"
+-
+-#include "rfnm_granita.h"
+-
+-char SiCoreChar[3] = {'a', 'b', 0};
+-
+-struct i2c_client *si5510_i2c_client;
+-struct device *si5510_i2c_dev;
+-
+-/*
+-void __iomem *gpio4_iomem;
+-volatile unsigned int *gpio4;
+-int gpio4_initial;
+-
+-struct rfnm_granita_spi {
+-	struct spi_controller *ctlr;
+-	void __iomem *base;
+-};*/
+-
+-/*struct __attribute__((__packed__)) rfnm_packet_head {
+-		uint32_t check;
+-	uint32_t cc;
+-	uint8_t reader_too_slow;
+-	uint8_t padding[16 - 9 + 4 + 12];
+-};*/
+-
+-
+-
+-/*void rfnm_granita_register() {
+-	rfnm_daughterboard_register_cb()
+-}*/
+-
+-
+-
+-void rfnm_granita_set_bias_t(int dgb_id, int ch, enum rfnm_bias_tee bias_tee) {
+-	if(ch == 0) {
+-		if(bias_tee == RFNM_BIAS_TEE_ON) {
+-			rfnm_gpio_clear(dgb_id, RFNM_DGB_GPIO4_3); // FF_ANT_BIAS_A
+-		} else {
+-			rfnm_gpio_set(dgb_id, RFNM_DGB_GPIO4_3); // FF_ANT_BIAS_A
+-		}
+-	} else {
+-		if(bias_tee == RFNM_BIAS_TEE_ON) {
+-			rfnm_gpio_clear(dgb_id, RFNM_DGB_GPIO5_16); // FF_ANT_BIAS_B
+-		} else {
+-			rfnm_gpio_set(dgb_id, RFNM_DGB_GPIO5_16); // FF_ANT_BIAS_B
+-		}
+-	}
+-}
+-
+-int parse_granita_iq_lpf(int mhz) {
+-	if(mhz >= 400) {
+-		return 400000;
+-	} else if(mhz >= 320) {
+-		return 320000;
+-	} else if(mhz >= 200) {
+-		return 200000;
+-	} else if(mhz >= 160) {
+-		return 160000;
+-	} else if(mhz >= 100) {
+-		return 100000;
+-	} else if(mhz >= 80) {
+-		return 80000;
+-	} else if(mhz >= 60) {
+-		return 60000;
+-	} else if(mhz >= 40) {
+-		return 40000;
+-	} else if(mhz >= 20) {
+-		return 20000;
+-	} else {
+-		if(mhz >= 1) {
+-			return 20000;
+-		} else {
+-			return 100000;
+-		}
+-	}
+-}
+-
+-
+-void rfnm_tx_ch_get(struct rfnm_dgb *dgb_dt, struct rfnm_api_tx_ch * tx_ch) {
+-	printk("inside rfnm_tx_ch_get\n");
+-}
+-void rfnm_rx_ch_get(struct rfnm_dgb *dgb_dt, struct rfnm_api_rx_ch * rx_ch) {
+-	printk("inside rfnm_rx_ch_get\n");
+-}
+-
+-#define SIAPI_PATH_B (1 << 1)
+-#define SIAPI_PATH_A (1 << 3)
+-#define SIAPI_PATH_ALL (SIAPI_PATH_B | SIAPI_PATH_A)
+-
+-
+-int rfnm_granita_tdd(struct rfnm_dgb *dgb_dt, struct rfnm_api_tx_ch * tx_ch, struct rfnm_api_rx_ch * rx_ch) {
+-	int ret;
+-	rfnm_api_failcode ecode = RFNM_API_OK;
+-	printk("RFNM: TDD rx %d tx %d\n", HZ_TO_KHZ(tx_ch->freq), HZ_TO_KHZ(rx_ch->freq));
+-	ret = SiAPILoopback(SiCoreChar[dgb_dt->dgb_id], SIAPI_PATH_ALL, HZ_TO_KHZ(tx_ch->freq), HZ_TO_KHZ(rx_ch->freq));
+-	if(ret) {
+-		printk("SiAPILoopback wouldn't return nice things\n");
+-		ecode = RFNM_API_TUNE_FAIL;
+-		goto fail;
+-	}
+-
+-	ret = SiAPIRXGAIN(SiCoreChar[dgb_dt->dgb_id], SIAPI_PATH_ALL, rx_ch->gain);
+-	if(ret) {
+-		printk("SiAPIRXGAIN failed\n");
+-		ecode = RFNM_API_GAIN_FAIL;
+-		goto fail;
+-	}
+-
+-	ret = SiAPITXGAIN(SiCoreChar[dgb_dt->dgb_id], SIAPI_PATH_B, /*tx_ch->power*/ 48);
+-	if(ret) {
+-		printk("SiAPITXGAIN wouldn't return nice things\n");
+-		ecode = RFNM_API_GAIN_FAIL;
+-		goto fail;
+-	}
+-
+-	return 0;
+-fail:
+-	return -ecode;	
+-}
+-
+-
+-
+-int rfnm_tx_ch_set(struct rfnm_dgb *dgb_dt, struct rfnm_api_tx_ch * tx_ch) {
+-
+-	int ret;
+-	rfnm_api_failcode ecode = RFNM_API_OK;
+-
+-	granita0_tx_freqsel(dgb_dt, HZ_TO_MHZ(tx_ch->freq));
+-	
+-	if(tx_ch->path == RFNM_PATH_SMA_A) {
+-		granita0_ant_a_tx(dgb_dt);
+-	} else if(tx_ch->path == RFNM_PATH_SMA_B) {
+-		granita0_ant_b_tx(dgb_dt);
+-	}
+-
+-	if(tx_ch->path == RFNM_PATH_LOOPBACK) {
+-		granita0_tx_power(dgb_dt, HZ_TO_MHZ(tx_ch->freq), -24, 1);
+-	} else {
+-		granita0_tx_power(dgb_dt, HZ_TO_MHZ(tx_ch->freq), tx_ch->power, 0);
+-	}
+-
+-
+-	if(tx_ch->path == RFNM_PATH_LOOPBACK) {
+-		// if the path is loopback, it is of PARAMOUNT importance to keep tight
+-		// control over the amplifiers and chip output power. 
+-
+-		// Two options:
+-		// If power is > 0, disable both amplifiers and set switching attenuation to zero
+-		// if power is zero, we are in loopback calibration mode, enable some 
+-		// switchable attenuation and also enable the second 20 dB amplifier. 
+-
+-		if(tx_ch->power > 0) {
+-			granita0_tx_loopback(dgb_dt, 0);
+-		} else {
+-			granita0_tx_loopback(dgb_dt, 1);
+-		}
+-	}
+-
+-	rfnm_granita_set_bias_t(dgb_dt->dgb_id, tx_ch->dgb_ch_id, tx_ch->bias_tee);
+-
+-	rfnm_fe_load_latches(dgb_dt);
+-	rfnm_fe_trigger_latches(dgb_dt);
+-
+-
+-
+-	if(tx_ch->path != RFNM_PATH_LOOPBACK && tx_ch->enable != RFNM_CH_ON_TDD) {
+-		ret = SiAPIPowerUpTX(SiCoreChar[dgb_dt->dgb_id], SIAPI_PATH_B, HZ_TO_KHZ(tx_ch->freq), parse_granita_iq_lpf(tx_ch->rfic_lpf_bw));
+-		if(ret) {
+-			printk("SiAPIPowerUpTX wouldn't return nice things\n");
+-			ecode = RFNM_API_TUNE_FAIL;
+-			goto fail;
+-		}
+-
+-		ret = SiAPITXGAIN(SiCoreChar[dgb_dt->dgb_id], SIAPI_PATH_B, 48);
+-		if(ret) {
+-			printk("SiAPITXGAIN wouldn't return nice things\n");
+-			ecode = RFNM_API_GAIN_FAIL;
+-			goto fail;
+-		}
+-	}
+-	else if(tx_ch->enable != RFNM_CH_ON_TDD) {
+-		// loopback rx frequency is the first rx channel with rx loopback mode set
+-		long rx_freq = 0;
+-		for(int q = 0; q < 4; q++) {
+-			if(dgb_dt->rx_ch[q]->path == RFNM_PATH_LOOPBACK) {
+-				rx_freq = dgb_dt->rx_ch[q]->freq;
+-				break;
+-			}
+-		}
+-		if(!rx_freq) {
+-			printk("You need to set the RX frequency on a RX channel using the loopback path before calling for tx loopback\n");
+-			ecode = RFNM_API_TUNE_FAIL;
+-			goto fail;
+-		}
+-		printk("%d %d\n", HZ_TO_KHZ(tx_ch->freq), HZ_TO_KHZ(rx_freq));
+-		ret = SiAPILoopback(SiCoreChar[dgb_dt->dgb_id], SIAPI_PATH_ALL, HZ_TO_KHZ(tx_ch->freq), HZ_TO_KHZ(rx_freq));
+-		if(ret) {
+-			printk("SiAPILoopback wouldn't return nice things\n");
+-			ecode = RFNM_API_TUNE_FAIL;
+-			goto fail;
+-		}
+-
+-		ret = SiAPIRXGAIN(SiCoreChar[dgb_dt->dgb_id], SIAPI_PATH_ALL, 0);
+-		if(ret) {
+-			printk("SiAPIRXGAIN failed\n");
+-			ecode = RFNM_API_GAIN_FAIL;
+-			goto fail;
+-		}
+-
+-		ret = SiAPITXGAIN(SiCoreChar[dgb_dt->dgb_id], SIAPI_PATH_B, tx_ch->power);
+-		if(ret) {
+-			printk("SiAPITXGAIN wouldn't return nice things\n");
+-			ecode = RFNM_API_GAIN_FAIL;
+-			goto fail;
+-		}
+-	}
+-
+-
+-	if(tx_ch->enable == RFNM_CH_ON_TDD) {
+-		memcpy(&dgb_dt->fe_tdd[RFNM_TX], &dgb_dt->fe, sizeof(struct fe_s));	
+-
+-		for(int i = 0; i < 2; i++) {
+-			if(dgb_dt->rx_s[i]->enable == RFNM_CH_ON_TDD) {
+-				rfnm_dgb_en_tdd(dgb_dt, tx_ch, dgb_dt->rx_s[i]);
+-				rfnm_granita_tdd(dgb_dt, tx_ch, dgb_dt->rx_s[i]);
+-				break;
+-			}
+-		}
+-	}
+-
+-	memcpy(dgb_dt->tx_s[0], dgb_dt->tx_ch[0], sizeof(struct rfnm_api_tx_ch));
+-
+-	return 0;
+-fail: 
+-	return -ecode;
+-}
+-
+-/*[ 2157.510915] Unable to handle kernel paging request at virtual address 0000000200000000
+-[ 2157.510934] Mem abort info:
+-[ 2157.510935]   ESR = 0x96000044
+-[ 2157.510938]   EC = 0x25: DABT (current EL), IL = 32 bits
+-[ 2157.510943]   SET = 0, FnV = 0
+-[ 2157.510945]   EA = 0, S1PTW = 0
+-[ 2157.510947]   FSC = 0x04: level 0 translation fault
+-[ 2157.510950] Data abort info:
+-[ 2157.510952]   ISV = 0, ISS = 0x00000044
+-[ 2157.510954]   CM = 0, WnR = 1
+-[ 2157.510957] user pgtable: 4k pages, 48-bit VAs, pgdp=0000000105861000
+-[ 2157.510961] [0000000200000000] pgd=0000000000000000, p4d=0000000000000000
+-[ 2157.510969] Internal error: Oops: 96000044 [#1] PREEMPT_RT SMP
+-[ 2157.510974] Modules linked in: rfnm_granita(O) rfnm_breakout(O) rfnm_lime(O) rfnm_usb_boost(O) rfnm_usb(O) rfnm_usb_function(O) rfnm_daughterboard(O) rfnm_lalib(O) la9310rfnm(O) rfnm_gpio(O) kpage_ncache(O) la9310shiva(O) overlay fsl_jr_uio caam_jr caamkeyblob_desc caamhash_desc caamalg_desc crypto_engine authenc libdes cdc_acm crct10dif_ce dw_hdmi_cec snd_soc_imx_hdmi snd_soc_fsl_xcvr caam secvio error fuse [last unloaded: rfnm_gpio]
+-[ 2157.511031] CPU: 0 PID: 1260 Comm: kworker/0:0 Tainted: G        W  O      5.15.71-rt51 #13
+-[ 2157.511037] Hardware name: RFNM imx8mp (DT)
+-[ 2157.511041] Workqueue: events rfnm_apply_dev_rx_chlist_work [rfnm_daughterboard]
+-[ 2157.511060] pstate: 60000005 (nZCv daif -PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+-[ 2157.511065] pc : ktime_get_real_ts64+0x40/0x100
+-[ 2157.511077] lr : spi_transfer_one_message+0xe0/0x470
+-[ 2157.511083] sp : ffff80001bc2b3b0
+-[ 2157.511085] x29: ffff80001bc2b3b0 x28: ffff80001bc2b5f8 x27: ffff800009843078
+-[ 2157.511092] x26: 0000000000000000 x25: ffff0000c0fd9390 x24: 0000000000000000
+-[ 2157.511099] x23: ffff0000c0fecbc8 x22: 0000000200000000 x21: 0000000000106d0e
+-[ 2157.511106] x20: ffff800009e66f80 x19: 0000000000000000 x18: 00000000000a6c68
+-[ 2157.511113] x17: 0000000000000000 x16: 0000000000000000 x15: 0000000200000000
+-[ 2157.511119] x14: 00000000000001ad x13: 0000000000000000 x12: 0000000000000000
+-[ 2157.511126] x11: 0000000000000000 x10: 0000000000000101 x9 : 0000000000000014
+-[ 2157.511132] x8 : ffff0000c0fec800 x7 : ffff80001bc2b560 x6 : 00000000000f4240
+-[ 2157.511139] x5 : ffff0000c0fd9700 x4 : ffff0000c0fecbe0 x3 : 0000000000000000
+-[ 2157.511145] x2 : 0000000000000000 x1 : ffff800009ddb000 x0 : 00000000663fcdc2
+-[ 2157.511152] Call trace:
+-[ 2157.511155]  ktime_get_real_ts64+0x40/0x100
+-[ 2157.511161]  spi_transfer_one_message+0xe0/0x470
+-[ 2157.511166]  __spi_pump_messages+0x318/0x59c
+-[ 2157.511171]  __spi_sync+0x210/0x240
+-[ 2157.511175]  spi_sync+0x30/0x5c
+-[ 2157.511179]  spi_sync_transfer.constprop.0+0x68/0x90 [rfnm_granita]
+-[ 2157.511195]  com_receive+0x8c/0xf0 [rfnm_granita]
+-[ 2157.511206]  Si_Read_FullPath+0x44/0x64 [rfnm_granita]
+-[ 2157.511218]  Si_Read_FullAddr+0x68/0x8c [rfnm_granita]
+-[ 2157.511230]  SiMid_BitWrite+0x6c/0x15c [rfnm_granita]
+-[ 2157.511242]  SiAPISetSynth+0x6c4/0x900 [rfnm_granita]
+-[ 2157.511254]  SiAPIPowerUpRX+0x28c/0x6f0 [rfnm_granita]
+-[ 2157.511266]  rfnm_rx_ch_set+0x21c/0x3c0 [rfnm_granita]
+-[ 2157.511278]  rfnm_dgb_rx_set+0x1c/0xc4 [rfnm_daughterboard]
+-[ 2157.511288]  rfnm_apply_dev_rx_chlist_work+0x100/0x12c [rfnm_daughterboard]
+-[ 2157.511297]  process_one_work+0x1d0/0x354
+-[ 2157.511302]  worker_thread+0x130/0x460
+-[ 2157.511306]  kthread+0x188/0x1a0
+-[ 2157.511312]  ret_from_fork+0x10/0x20
+-[ 2157.511321] Code: 120002b3 370004b5 d50339bf f9404280 (f90002c0)
+-[ 2157.511328] ---[ end trace 0000000000000003 ]---
+-
+-
+-http://mail.spinics.net/lists/linux-spi/msg34523.html
+-
+-*/
+-void rfnm_si5510_set_output_status(struct i2c_client *client, int output_id, int enable_disable);
+-
+-int rfnm_rx_ch_set(struct rfnm_dgb *dgb_dt, struct rfnm_api_rx_ch * rx_ch) {
+-
+-	int dbm = rx_ch->gain;
+-	int ret;
+-	int gr_api_id;
+-	rfnm_api_failcode ecode = RFNM_API_OK;
+-
+-	if(rx_ch->dgb_ch_id == 0) {
+-		if(rx_ch->path == RFNM_PATH_SMA_A) {
+-			if(dbm < -12) {
+-				// enable 24 dB attenuator
+-				dbm += 24;
+-				granita0_ant_a_attn_24(dgb_dt);
+-			} else if(dbm < 0) {
+-				// enable 12 dB attenuator
+-				dbm += 12;
+-				granita0_ant_a_attn_12(dgb_dt);
+-			} else {
+-				granita0_ant_a_through(dgb_dt);
+-			}
+-		}
+-
+-		if(rx_ch->path == RFNM_PATH_SMA_B) {
+-			granita0_tx_power(dgb_dt, -100, 0, 0);
+-			granita0_ant_b_crossover(dgb_dt);
+-		}
+-
+-		if(rx_ch->path == RFNM_PATH_EMBED_ANT) {
+-			granita0_tx_power(dgb_dt, HZ_TO_MHZ(rx_ch->freq), -100, 0);
+-			if(HZ_TO_MHZ(rx_ch->freq) < 3000) {
+-				granita0_ant_a_embeded_lf(dgb_dt);
+-			} else {
+-				granita0_ant_a_embeded_hf(dgb_dt);
+-			}
+-		}
+-
+-		if(rx_ch->path == RFNM_PATH_LOOPBACK) {
+-			granita0_ant_a_loopback(dgb_dt);
+-		}
+-
+-		granita0_fa(dgb_dt, HZ_TO_MHZ(rx_ch->freq), rx_ch->fm_notch);
+-	}
+-	
+-	if(rx_ch->dgb_ch_id == 1) {
+-		if(rx_ch->path == RFNM_PATH_SMA_B) {
+-			if(dbm < -12) {
+-				// enable 24 dB attenuator
+-				dbm += 24;
+-				granita0_ant_b_attn_24(dgb_dt);
+-			} else if(dbm < 0) {
+-				// enable 12 dB attenuator
+-				dbm += 12;
+-				granita0_ant_b_attn_12(dgb_dt);
+-			} else {
+-				granita0_ant_b_through(dgb_dt);
+-				//printk("granita0_ant_b_through\n");
+-			}
+-		}
+-
+-		if(rx_ch->path == RFNM_PATH_SMA_A) {
+-			granita0_tx_power(dgb_dt, HZ_TO_MHZ(rx_ch->freq), -100, 0);
+-			granita0_ant_a_crossover(dgb_dt);
+-		}
+-
+-
+-		if(rx_ch->path == RFNM_PATH_EMBED_ANT) {
+-			granita0_tx_power(dgb_dt, HZ_TO_MHZ(rx_ch->freq), -100, 0);
+-			if(HZ_TO_MHZ(rx_ch->freq) < 3000) {
+-				granita0_ant_b_embeded_lf(dgb_dt);
+-			} else {
+-				granita0_ant_b_embeded_hf(dgb_dt);
+-			}
+-		}
+-
+-		if(rx_ch->path == RFNM_PATH_LOOPBACK) {
+-			granita0_ant_b_loopback(dgb_dt);
+-		}
+-		
+-		granita0_fb(dgb_dt, HZ_TO_MHZ(rx_ch->freq), rx_ch->fm_notch);
+-	}
+-
+-	rfnm_granita_set_bias_t(dgb_dt->dgb_id, rx_ch->dgb_ch_id, rx_ch->bias_tee);
+-
+-	if(rx_ch->dgb_ch_id == 0) {
+-		gr_api_id = SIAPI_PATH_A;
+-	} else {
+-		gr_api_id = SIAPI_PATH_B;
+-	}
+-
+-	if(dgb_dt->rx_s[!rx_ch->dgb_ch_id]->enable == RFNM_CH_ON) {
+-		if(rx_ch->dgb_ch_id == 0) {
+-			gr_api_id |= SIAPI_PATH_B;
+-		} else {
+-			gr_api_id |= SIAPI_PATH_A;
+-		}
+-	}
+-	
+-	uint64_t freq = rx_ch->freq;
+-
+-	if(rx_ch->freq < MHZ_TO_HZ(600)) {
+-
+-		if(dgb_dt->dgb_id == 0) {
+-		//	rfnm_si5510_set_output_status(si5510_i2c_client, 15, 1);
+-		} else {
+-		//	rfnm_si5510_set_output_status(si5510_i2c_client, 2, 1);			
+-		}
+-
+-		rfnm_rffc_init(dgb_dt);
+-
+-		int tsf;
+-
+-		if(rx_ch->dgb_ch_id == 0) {
+-			granita0_rffc_rx_a(dgb_dt);
+-			if(rx_ch->rfic_lpf_bw && rx_ch->rfic_lpf_bw <= 2) {
+-				tsf = 1615;
+-				granita0_rffc_rx_a_1574_1576(dgb_dt);
+-			} else if(rx_ch->rfic_lpf_bw && rx_ch->rfic_lpf_bw <= 30) {
+-				tsf = 1615;
+-				granita0_rffc_rx_a_1574_1605(dgb_dt);
+-			} else {
+-				tsf = 1198;
+-				granita0_rffc_rx_a_1166_1229(dgb_dt);
+-			}
+-		} else {
+-			granita0_rffc_rx_b(dgb_dt);
+-			if(rx_ch->rfic_lpf_bw && rx_ch->rfic_lpf_bw <= 2) {
+-				tsf = 1615;
+-				granita0_rffc_rx_b_1574_1576(dgb_dt);
+-			} else if(rx_ch->rfic_lpf_bw && rx_ch->rfic_lpf_bw <= 30) {
+-				tsf = 1615;
+-				granita0_rffc_rx_b_1574_1605(dgb_dt);
+-			} else {
+-				tsf = 1198;
+-				granita0_rffc_rx_b_1166_1229(dgb_dt);
+-			}
+-		}
+-
+-		rfnm_rffc_set_freq(dgb_dt, MHZ_TO_HZ(tsf) - rx_ch->freq);
+-		freq = MHZ_TO_HZ(tsf);
+-
+-	} else {
+-		rfnm_rffc_deinit(dgb_dt);
+-
+-		if(dgb_dt->dgb_id == 0) {
+-		//	rfnm_si5510_set_output_status(si5510_i2c_client, 15, 0);
+-		} else {
+-		//	rfnm_si5510_set_output_status(si5510_i2c_client, 2, 0);			
+-		}
+-	}
+-
+-#if 0
+-	rfnm_gpio_output(0, RFNM_GPIO4_26); 
+-	rfnm_gpio_output(0, RFNM_GPIO4_30); 
+-
+-	if(rx_ch->dgb_ch_id == 1) {
+-		rfnm_gpio_clear(0, RFNM_GPIO4_26); 
+-		rfnm_gpio_set(0, RFNM_GPIO4_30); 
+-	} else {
+-		rfnm_gpio_set(0, RFNM_GPIO4_26); 
+-		rfnm_gpio_clear(0, RFNM_GPIO4_30); 
+-	}
+-#endif
+-
+-	rfnm_fe_load_latches(dgb_dt);
+-	rfnm_fe_trigger_latches(dgb_dt);
+-
+-	if(rx_ch->path != RFNM_PATH_LOOPBACK && rx_ch->enable != RFNM_CH_ON_TDD) {
+-		// TX command takes care of RX init when in loopback mode
+-		ret = SiAPIPowerUpRX(SiCoreChar[dgb_dt->dgb_id], gr_api_id, HZ_TO_KHZ(freq), parse_granita_iq_lpf(rx_ch->rfic_lpf_bw));
+-		if(ret) {
+-			ecode = RFNM_API_TUNE_FAIL;
+-			goto fail;
+-			//printf("SiAPIPowerUpRX wouldn't return nice things\n");
+-		}
+-
+-		//printk("rx dbm is %d\n", dbm);
+-
+-		if(dbm > 0) {
+-			if(dbm > 64) {
+-				dbm = 64;
+-			}
+-			ret = SiAPIRXGAIN(SiCoreChar[dgb_dt->dgb_id], gr_api_id, dbm);
+-			if(ret) {
+-				printk("SiAPIRXGAIN failed\n");
+-				ecode = RFNM_API_GAIN_FAIL;
+-				goto fail;
+-			}
+-		}
+-	}
+-
+-	if(rx_ch->enable == RFNM_CH_ON_TDD) {
+-		// go for maximum attenuation on tx path
+-		granita0_tx_power(dgb_dt, 1000, -100, 0);
+-		
+-		memcpy(&dgb_dt->fe_tdd[RFNM_RX], &dgb_dt->fe, sizeof(struct fe_s));	
+-		if(dgb_dt->tx_s[0]->enable == RFNM_CH_ON_TDD) {
+-			rfnm_dgb_en_tdd(dgb_dt, dgb_dt->tx_s[0], rx_ch);
+-			rfnm_granita_tdd(dgb_dt, dgb_dt->tx_s[0], rx_ch);
+-		}
+-	}
+-
+-	memcpy(dgb_dt->rx_s[rx_ch->dgb_ch_id], dgb_dt->rx_ch[rx_ch->dgb_ch_id], sizeof(struct rfnm_api_rx_ch));	
+-
+-	return 0;
+-
+-	
+-fail: 
+-	//if(ecode)
+-	//	printk("freq %ld retcode %d\n",freq,  ecode);
+-	return -ecode;
+-}
+-
+-
+-
+-static int rfnm_granita_probe(struct spi_device *spi)
+-{
+-	struct rfnm_bootconfig *cfg;
+-	struct rfnm_eeprom_data *eeprom_data;
+-	cfg = memremap(RFNM_BOOTCONFIG_PHYADDR, SZ_4M, MEMREMAP_WB);
+-
+-	struct spi_master *spi_master;
+-	spi_master = spi->master;
+-	int dgb_id = spi_master->bus_num - 1;
+-
+-	if(	cfg->daughterboard_present[dgb_id] != RFNM_DAUGHTERBOARD_PRESENT ||
+-		cfg->daughterboard_eeprom[dgb_id].board_id != RFNM_DAUGHTERBOARD_GRANITA) {
+-		//printk("RFNM: Granita driver loaded, but daughterboard is not Granita\n");
+-		memunmap(cfg);
+-		return -ENODEV;
+-	}
+-
+-	printk("RFNM: Loading Granita driver for daughterboard at slot %d\n", dgb_id);
+-
+-	rfnm_gpio_output(dgb_id, RFNM_DGB_GPIO4_7); // granita power
+-	rfnm_gpio_output(dgb_id, RFNM_DGB_GPIO4_6); // granita nrst
+-
+-	rfnm_gpio_output(dgb_id, RFNM_DGB_GPIO4_3); // FF_ANT_BIAS_A
+-	rfnm_gpio_output(dgb_id, RFNM_DGB_GPIO5_16); // FF_ANT_BIAS_B
+-
+-	rfnm_granita_set_bias_t(dgb_id, 0, RFNM_BIAS_TEE_OFF);
+-	rfnm_granita_set_bias_t(dgb_id, 1, RFNM_BIAS_TEE_OFF);
+-
+-	rfnm_gpio_clear(dgb_id, RFNM_DGB_GPIO4_7); 
+-	rfnm_gpio_clear(dgb_id, RFNM_DGB_GPIO4_6); 
+-
+-	msleep(1);
+-
+-	rfnm_gpio_set(dgb_id, RFNM_DGB_GPIO4_7); 
+-	rfnm_gpio_set(dgb_id, RFNM_DGB_GPIO4_6); 
+-
+-//# gpioset 2 21=0 // rffc NRST
+-
+-	struct device *dev = &spi->dev;
+-	struct rfnm_dgb *dgb_dt;
+-	
+-	const struct spi_device_id *id = spi_get_device_id(spi);
+-	int i, ret;
+-
+-	dgb_dt = devm_kzalloc(dev, sizeof(struct rfnm_dgb), GFP_KERNEL);
+-	if(!dgb_dt) {
+-		return -ENOMEM;
+-	}
+-
+-	dgb_dt->dgb_id = dgb_id;
+-
+-	dgb_dt->rx_ch_set = rfnm_rx_ch_set;
+-	dgb_dt->rx_ch_get = rfnm_rx_ch_get;
+-	dgb_dt->tx_ch_set = rfnm_tx_ch_set;
+-	dgb_dt->tx_ch_get = rfnm_tx_ch_get;
+-
+-	spi_set_drvdata(spi, dgb_dt);
+-
+-	spi->max_speed_hz = 1000000;
+-	spi->bits_per_word = 8;
+-	spi->mode = SPI_CPHA;
+-
+-	rfnm_fe_generic_init(dgb_dt, RFNM_GRANITA0_NUM_LATCHES); 
+-
+-
+-    dgb_dt->priv_drv = kmalloc (100, GFP_KERNEL );
+-
+-	
+-
+-	
+-
+-    ret = SiAPIOpen(SiCoreChar[dgb_dt->dgb_id], dgb_dt->priv_drv, spi);
+-    if(ret) {
+-        printk("Si core wouldn't open\n");
+-        return -1;
+-    }
+-	//int z;
+-	//for(z = 0; z < 100; z++) {
+-	//	ret = SiAPISPITest(SiCoreChar[dgb_dt->dgb_id]);
+-    //	printk("SiAPISPITest %d\n", ret);
+-	//}
+-
+-	ret = SiAPISPITest(SiCoreChar[dgb_dt->dgb_id]);
+-	if(ret) {
+-		printk("Si core wouldn't open\n");
+-		return -1;
+-		//printf("SiAPIPowerUpRX wouldn't return nice things\n");
+-	}
+-	
+-
+-	//ret = SiAPIPowerUpRX(SiCoreChar[dgb_dt->dgb_id], SIAPI_PATH_A, 1850 * 1000, 100000);
+-	//if(ret) {
+-	//	return -1;
+-		//printf("SiAPIPowerUpRX wouldn't return nice things\n");
+-	//}
+-
+-	printk("RFNM: Granita daughterboard initialized\n");
+-
+-	//rfnm_daughterboard_register_cb(slot, RFNM_CB_RX_TUNE);
+-
+-
+-	
+-	si5510_i2c_dev = bus_find_device_by_name(&i2c_bus_type, NULL, "0-0058");
+-	if (!si5510_i2c_dev) {
+-		printk("Couldn't find i2c device\n");
+-	} else {
+-		si5510_i2c_client = i2c_verify_client(si5510_i2c_dev);
+-		if (!si5510_i2c_client) {
+-			printk("Couldn't find i2c client\n");
+-		}
+-	}
+-	
+-
+-
+-	
+-	struct rfnm_api_tx_ch *tx_ch, *tx_s;
+-	struct rfnm_api_rx_ch *rx_ch[2], *rx_s[2];
+-
+-	if (dgb_id == 0) {
+-		tx_ch = devm_kzalloc(dev, sizeof(struct rfnm_api_tx_ch), GFP_KERNEL);
+-		tx_s = devm_kzalloc(dev, sizeof(struct rfnm_api_tx_ch), GFP_KERNEL);
+-		if (!tx_ch || !tx_s) {
+-			return -ENOMEM;
+-		}
+-	}
+-	rx_ch[0] = devm_kzalloc(dev, sizeof(struct rfnm_api_rx_ch), GFP_KERNEL);
+-	rx_ch[1] = devm_kzalloc(dev, sizeof(struct rfnm_api_rx_ch), GFP_KERNEL);
+-	rx_s[0] = devm_kzalloc(dev, sizeof(struct rfnm_api_rx_ch), GFP_KERNEL);
+-	rx_s[1] = devm_kzalloc(dev, sizeof(struct rfnm_api_rx_ch), GFP_KERNEL);
+-	
+-	if(!(rx_ch[0] && rx_ch[1] && rx_s[0] && rx_s[1])) {
+-		return -ENOMEM;
+-	}
+-
+-	if (dgb_id == 0) {
+-		tx_ch->freq_max = MHZ_TO_HZ(6300);
+-		tx_ch->freq_min = MHZ_TO_HZ(600);
+-		tx_ch->path_preferred = RFNM_PATH_SMA_B;
+-		tx_ch->path_possible[0] = RFNM_PATH_SMA_B;
+-		tx_ch->path_possible[1] = RFNM_PATH_SMA_A;
+-		tx_ch->path_possible[2] = RFNM_PATH_NULL;
+-		tx_ch->power_range.min = -60;
+-		tx_ch->power_range.max = 30;
+-
+-		tx_ch->dac_id = 0;
+-		rfnm_dgb_reg_tx_ch(dgb_dt, tx_ch, tx_s);
+-	}
+-
+-	rx_ch[0]->freq_max = MHZ_TO_HZ(6300);
+-	rx_ch[0]->freq_min = MHZ_TO_HZ(600);
+-	rx_ch[0]->path_preferred = RFNM_PATH_SMA_A;
+-	rx_ch[0]->path_possible[0] = RFNM_PATH_SMA_A;
+-	rx_ch[0]->path_possible[1] = RFNM_PATH_SMA_B;
+-	rx_ch[0]->path_possible[2] = RFNM_PATH_EMBED_ANT;
+-	rx_ch[0]->path_possible[3] = RFNM_PATH_NULL;
+-	rx_ch[0]->gain_range.min = -40;
+-	rx_ch[0]->gain_range.max = 60;
+-
+-	rx_ch[0]->adc_id = 1;
+-	rfnm_dgb_reg_rx_ch(dgb_dt, rx_ch[0], rx_s[0]);
+-	
+-	rx_ch[1]->freq_max = MHZ_TO_HZ(6300);
+-	rx_ch[1]->freq_min = MHZ_TO_HZ(600);
+-	rx_ch[1]->path_preferred = RFNM_PATH_SMA_B;
+-	rx_ch[1]->path_possible[0] = RFNM_PATH_SMA_B;
+-	rx_ch[1]->path_possible[1] = RFNM_PATH_SMA_A;
+-	rx_ch[1]->path_possible[2] = RFNM_PATH_EMBED_ANT;
+-	rx_ch[1]->path_possible[3] = RFNM_PATH_NULL;
+-	rx_ch[0]->gain_range.min = -40;
+-	rx_ch[0]->gain_range.max = 60;
+-
+-	rx_ch[1]->adc_id = 0;
+-	rfnm_dgb_reg_rx_ch(dgb_dt, rx_ch[1], rx_s[1]);
+-
+-/*
+-		cfg->daughterboard_eeprom[dgb_id].board_id, 
+-		cfg->daughterboard_eeprom[dgb_id].board_revision_id, 
+-		cfg->daughterboard_eeprom[dgb_id].serial_number*/
+-
+-	dgb_dt->dac_ifs = 0xf;
+-	dgb_dt->dac_iqswap[0] = 1;
+-	dgb_dt->dac_iqswap[1] = 0;
+-	dgb_dt->adc_iqswap[0] = 0;
+-	dgb_dt->adc_iqswap[1] = 0;
+-	rfnm_dgb_reg(dgb_dt);
+-
+-	return 0;
+-}
+-
+-static int rfnm_granita_remove(struct spi_device *spi)
+-{
+-	struct rfnm_dgb *dgb_dt;
+-	dgb_dt = spi_get_drvdata(spi);
+-
+-	//struct spi_controller *ctlr;
+-
+-	//ctlr = dev_get_drvdata(&pdev->dev);
+-	//spi_unregister_controller(ctlr);
+-	rfnm_dgb_unreg(dgb_dt); 
+-
+-	put_device(si5510_i2c_dev);
+-
+-	return 0;
+-}
+-
+-static const struct spi_device_id rfnm_granita_ids[] = {
+-	{ "rfnm,daughterboard" },
+-	{},
+-};
+-MODULE_DEVICE_TABLE(spi, rfnm_granita_ids);
+-
+-
+-static const struct of_device_id rfnm_granita_match[] = {
+-	{ .compatible = "rfnm,daughterboard" },
+-	{},
+-};
+-MODULE_DEVICE_TABLE(of, rfnm_granita_match);
+-
+-static struct spi_driver rfnm_granita_spi_driver = {
+-	.driver = {
+-		.name = "rfnm_granita",
+-		.of_match_table = rfnm_granita_match,
+-	},
+-	.probe = rfnm_granita_probe,
+-	.remove = rfnm_granita_remove,
+-	.id_table = rfnm_granita_ids,
+-};
+-
+-module_spi_driver(rfnm_granita_spi_driver);
+-
+-
+-MODULE_PARM_DESC(device, "RFNM Granita Daughterboard Driver");
+-
+-MODULE_LICENSE("GPL");
+diff --git a/kernel_driver/la9310rfnm/rfnm_granita_rffc.c b/kernel_driver/la9310rfnm/rfnm_granita_rffc.c
+deleted file mode 100644
+index a913069..0000000
+--- a/kernel_driver/la9310rfnm/rfnm_granita_rffc.c
++++ /dev/null
+@@ -1,266 +0,0 @@
+-#include <linux/irq.h>
+-#include <linux/interrupt.h>
+-#include <linux/kthread.h>
+-#include <linux/module.h>
+-#include <linux/dma-mapping.h>
+-#include <linux/dma-mapping.h>
+-#include <la9310_base.h>
+-//#include "rfnm.h"
+-//#include "rfnm_callback.h"
+-#include <asm/cacheflush.h>
+-
+-#include <linux/dma-direct.h>
+-#include <linux/dma-map-ops.h>
+-#include <linux/dma-mapping.h>
+-
+-
+-#include <linux/slab.h>
+-#include <linux/kernel.h>
+-#include <linux/dmaengine.h>
+-#include <linux/dma-mapping.h>
+-#include <linux/spinlock.h>
+-#include <linux/err.h>
+-#include <linux/module.h>
+-#include <linux/list.h>
+-
+-#include <linux/usb/ch9.h>
+-#include <linux/usb/gadget.h>
+-
+-
+-#include <linux/slab.h>
+-#include <linux/kernel.h>
+-#include <linux/device.h>
+-#include <linux/module.h>
+-#include <linux/usb/composite.h>
+-#include <linux/err.h>
+-
+-#include <linux/delay.h>
+-
+-#include <linux/of.h>
+-#include <linux/platform_device.h>
+-#include <linux/spi/spi.h>
+-#include <linux/delay.h>
+-
+-#include <linux/rfnm-shared.h>
+-#include <linux/rfnm-gpio.h>
+-
+-#include "rfnm_granita.h"
+-
+-#include "rfnm_fe_generic.h"
+-#include "rfnm_fe_granita0.h"
+-
+-#include <linux/log2.h>
+-
+-
+-
+-/*
+-    credit to XGudron from the UA3REO-DDC-Transceiver project
+-*/
+-
+-uint16_t rffc2071_regs[RFNM_RFFC2071_REGS_NUM] = {
+-    0xbefa, /* 00 LF - Loop Filter Configuration */
+-    0x4064, /* 01 XO - Crystal Oscillator Configuration */
+-    0x9055, /* 02 CAL_TIME - Calibration Timing */
+-    0x2d02, /* 03 VCO_CTRL - Calibration Control */
+-    0xacbf, /* 04 CT_CAL1 - Path 1 Coarse Tuning Calibration */
+-    0xacbf, /* 05 CT_CAL2 - Path 2 Coarse Tuning Calibration */
+-    0x0028, /* 06 PLL_CAL1 - Path 1 PLL Calibration */
+-    0x0028, /* 07 PLL_CAL2 - Path 2 PLL Calibration */
+-    0xff00, /* 08 VCO_AUTO - Auto VCO select control */
+-    0x8A20, /* 09 PLL_CTRL - PLL Control 0x8220 */
+-    0x0202, /* 0A PLL_BIAS - PLL Bias Settings */
+-    0xFE00, /* 0B MIX_CONT - Mixer Control (0x4800 default + add current + full duplex) */
+-    0x1a94, /* 0C P1_FREQ1 - Path 1 Frequency 1 */
+-    0xd89d, /* 0D P1_FREQ2 - Path 1 Frequency 2 */
+-    0x8900, /* 0E P1_FREQ3 - Path 1 Frequency 3 */
+-    0x1e84, /* 0F P2_FREQ1 - Path 2 Frequency 1 */
+-    0x89d8, /* 10 P2_FREQ2 - Path 2 Frequency 2 */
+-    0x9d00, /* 11 P2_FREQ3 - Path 2 Frequency 3 */
+-    0x2A80, /* 12 FN_CTRL - Frac-N Control */
+-    0x0000, /* 13 EXT_MOD - Frequency modulation control 1 */
+-    0x0000, /* 14 FMOD - Frequency modulation control 2 */
+-    0x0000, /* 15 SDI_CTRL - SDI Control */
+-    0x0000, /* 16 GPO - General Purpose Outputs */
+-    0x4900, /* 17 T_VCO - Temperature Compensation VCO Curves */
+-    0x0281, /* 18 IQMOD1 – Modulator Calibration */
+-    0xf00f, /* 19 IQMOD2 – Modulator Control */
+-    0x0000, /* 1A IQMOD3 - Modulator Buffer Control */
+-    0x0000, /* 1B IQMOD4– Modulator Core Control */
+-    0xc840, /* 1C TEMPC_CTRL – Temperature compensation control */
+-    0x1000, /* 1D DEV_CTRL - Readback register and RSM Control */
+-    0x0005, /* 1E TEST - Test register */
+-};
+-
+-#define SCK_CLR rfnm_gpio_clear(dgb_dt->dgb_id, RFNM_RFFC_CLK);
+-#define SCK_SET rfnm_gpio_set(dgb_dt->dgb_id, RFNM_RFFC_CLK);
+-
+-//#define RFFC_DELAY {volatile int rffc_delay; for(rffc_delay = 0; rffc_delay < 100; rffc_delay++) {rffc_delay+=1;}}
+-#define RFFC_DELAY {}
+-
+-#define RFNM_RFFC_SS RFNM_DGB_GPIO3_22 //FLEXCAN1_TX -> SAI5_RXD1
+-#define RFNM_RFFC_RST RFNM_DGB_GPIO3_21
+-#define RFNM_RFFC_CLK RFNM_DGB_GPIO4_8
+-#define RFNM_RFFC_DATA RFNM_DGB_GPIO3_23 //FLEXCAN1_RX -> SAI5_RXD2
+-
+-/*
+-*(gpio3_dr + 1) = *(gpio3_dr + 1) | (0x1 << 22); // enable ss gpio output
+-*(gpio3_dr + 1) = *(gpio3_dr + 1) | (0x1 << 21); // enable rst gpio output
+-*(gpio5_dr + 1) = *(gpio5_dr + 1) | (0x1 << 6) | (0x1 << 7); // enable clk+data gpio output
+-*/
+-
+-
+-void rfnm_rffc_shift_bit(struct rfnm_dgb *dgb_dt, uint32_t val, uint8_t size) {
+-	for (uint8_t i = 0; i < size; i++) {
+-		SCK_CLR;
+-		if(!!(val & (1 << (size - 1 - i)))) {
+-			rfnm_gpio_set(dgb_dt->dgb_id, RFNM_RFFC_DATA);
+-		} else {
+-			rfnm_gpio_clear(dgb_dt->dgb_id, RFNM_RFFC_DATA);
+-		}
+-		RFFC_DELAY;
+-		SCK_SET;
+-		RFFC_DELAY;
+-	}
+-}
+-
+-void rfnm_rffc_write_reg(struct rfnm_dgb *dgb_dt, uint8_t reg, uint16_t val) {
+-
+-	uint32_t tmp;
+-/*
+-    3033_01E4h MX8MP_IOMUXC_ECSPI1_MOSI__ECSPI1_MOSI GPIO7
+-    3033_01E0h MX8MP_IOMUXC_ECSPI1_SCLK__ECSPI1_SCLK GPIO6
+-*/	
+-
+-	//*(iomuxc_data + (0x1E4/4)) = 5;
+-	//*(iomuxc_data + (0x1E0/4)) = 5;
+-
+-	SCK_CLR;
+-	RFFC_DELAY;
+-	SCK_SET;
+-	RFFC_DELAY;
+-
+-	rfnm_gpio_clear(dgb_dt->dgb_id, RFNM_RFFC_SS);
+-
+-	rfnm_rffc_shift_bit(dgb_dt, (reg & 0x7F), 9);
+-	rfnm_rffc_shift_bit(dgb_dt, val, 16);
+-
+-	rfnm_gpio_set(dgb_dt->dgb_id, RFNM_RFFC_SS);
+-
+-	SCK_CLR;
+-	RFFC_DELAY;
+-	SCK_SET;
+-	RFFC_DELAY;
+-
+-	//*(iomuxc_data + (0x1E4/4)) = 0;
+-	//*(iomuxc_data + (0x1E0/4)) = 0;
+-}
+-
+-void rfnm_rffc_deinit(struct rfnm_dgb *dgb_dt) {
+-	rfnm_gpio_clear(dgb_dt->dgb_id, RFNM_RFFC_RST);
+-}
+-
+-void rfnm_rffc_init(struct rfnm_dgb *dgb_dt) {
+-
+-	rfnm_gpio_output(dgb_dt->dgb_id, RFNM_RFFC_SS);
+-	rfnm_gpio_output(dgb_dt->dgb_id, RFNM_RFFC_RST);
+-	rfnm_gpio_output(dgb_dt->dgb_id, RFNM_RFFC_CLK);
+-	rfnm_gpio_output(dgb_dt->dgb_id, RFNM_RFFC_DATA);
+-
+-	rfnm_gpio_set(dgb_dt->dgb_id, RFNM_RFFC_RST); 
+-
+-    int i;
+-	for (i = 0; i < RFNM_RFFC2071_REGS_NUM; i++) {
+-		rfnm_rffc_write_reg(dgb_dt, i, rffc2071_regs[i]);
+-	}
+-
+-	// set ENBL and MODE to be configured via 3-wire IF
+-	rffc2071_regs[0x15] |= (1 << 15) + (1 << 13);
+-	rfnm_rffc_write_reg(dgb_dt, 0x15, rffc2071_regs[0x15]);
+-
+-	// GPOs are active at all time and send LOCK flag to GPO4
+-	rffc2071_regs[0x16] |= (1 << 1) + (1 << 0);
+-	rfnm_rffc_write_reg(dgb_dt, 0x16, rffc2071_regs[0x16]);
+-}
+-
+-void rfnm_rffc_disable(struct rfnm_dgb *dgb_dt) {
+-	// clear ENBL BIT
+-	rffc2071_regs[0x15] &= ~(1 << 14);
+-	rfnm_rffc_write_reg(dgb_dt, 0x15, rffc2071_regs[0x15]);
+-}
+-
+-void rfnm_rffc_enable(struct rfnm_dgb *dgb_dt) {
+-	rffc2071_regs[0x15] |= (1 << 14);
+-	rfnm_rffc_write_reg(dgb_dt, 0x15, rffc2071_regs[0x15]);
+-}
+-
+-static uint64_t rfnm_rffc_freq_calc(struct rfnm_dgb *dgb_dt, uint64_t lo_freq_Hz) {
+-	uint8_t n_lo = ilog2(RFNM_RFFC2071_LO_MAX / lo_freq_Hz);
+-	uint8_t lodiv = 1 << n_lo; // 2^n_lo
+-	uint64_t fvco = lodiv * lo_freq_Hz;
+-	uint8_t fbkdiv;
+-
+-	if (fvco > 3200000000) {
+-		fbkdiv = 4;
+-		rffc2071_regs[0x0] &= ~(7);
+-		rffc2071_regs[0x0] |= 3;
+-		rfnm_rffc_write_reg(dgb_dt, 0x0, rffc2071_regs[0x0]);
+-	} else {
+-		fbkdiv = 2;
+-		rffc2071_regs[0x0] &= ~(7);
+-		rffc2071_regs[0x0] |= 2;
+-		rfnm_rffc_write_reg(dgb_dt, 0x0, rffc2071_regs[0x0]);
+-	}
+-
+-	double n_div = (double)fvco / (double)fbkdiv / RFNM_RFFC2071_REF_FREQ;
+-	uint8_t n = n_div;
+-	uint16_t nummsb = (1 << 16) * (n_div - n);
+-	uint8_t numlsb = (1 << 8) * ((1 << 16) * (n_div - n) - nummsb);
+-	// println(n_lo, " ", lodiv, " ", fvco, " ", fbkdiv, " ", n_div, " ", n, " ", nummsb, " ", numlsb);
+-
+-	/* Path 1 */
+-
+-	// p1_freq1
+-	rffc2071_regs[0x0C] &= ~(0x3fff << 2);
+-	rffc2071_regs[0x0C] |= (n << 7) + (n_lo << 4) + ((fbkdiv >> 1) << 2);
+-	rfnm_rffc_write_reg(dgb_dt, 0x0C, rffc2071_regs[0x0C]);
+-
+-	// p1_freq2
+-	rffc2071_regs[0x0D] = nummsb;
+-	rfnm_rffc_write_reg(dgb_dt, 0x0D, rffc2071_regs[0x0D]);
+-
+-	// p1_freq3
+-	rffc2071_regs[0x0E] = (numlsb << 8);
+-	rfnm_rffc_write_reg(dgb_dt, 0x0E, rffc2071_regs[0x0E]);
+-
+-	/* Path 2 */
+-
+-	// p2_freq1
+-	rffc2071_regs[0x0F] &= ~(0x3fff << 2);
+-	rffc2071_regs[0x0F] |= (n << 7) + (n_lo << 4) + ((fbkdiv >> 1) << 2);
+-	rfnm_rffc_write_reg(dgb_dt, 0x0F, rffc2071_regs[0x0F]);
+-
+-	// p2_freq2
+-	rffc2071_regs[0x10] = nummsb;
+-	rfnm_rffc_write_reg(dgb_dt, 0x10, rffc2071_regs[0x10]);
+-
+-	// p2_freq3
+-	rffc2071_regs[0x11] = (numlsb << 8);
+-	rfnm_rffc_write_reg(dgb_dt, 0x11, rffc2071_regs[0x11]);
+-
+-	// reset PLL
+-	rffc2071_regs[0x09] = (1 << 3);
+-	rfnm_rffc_write_reg(dgb_dt, 0x09, rffc2071_regs[0x09]);
+-
+-	// calculate result freq
+-	uint64_t tune_freq_hz = RFNM_RFFC2071_REF_FREQ * fbkdiv * ((double)n + ((double)((nummsb << 8) | numlsb) / (1 << 24))) / lodiv;
+-	return tune_freq_hz;
+-}
+-
+-
+-uint64_t rfnm_rffc_set_freq(struct rfnm_dgb *dgb_dt, uint64_t lo_freq_Hz) {
+-    rfnm_rffc_disable(dgb_dt);
+-	uint64_t set_freq = rfnm_rffc_freq_calc(dgb_dt, lo_freq_Hz);
+-	rfnm_rffc_enable(dgb_dt);
+-	printk("RFFC2071 LO Freq: %d\n", set_freq);
+-	return set_freq;
+-}
+\ No newline at end of file
+-- 
+2.51.0
+

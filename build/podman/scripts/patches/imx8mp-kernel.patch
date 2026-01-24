@@ -1,34 +1,27 @@
-From 86d94a64aab57a36a3545101139a6f071e939bcb Mon Sep 17 00:00:00 2001
+From 62b0f9006c9553cf36ad9dc3cbec46a8f7fe82d2 Mon Sep 17 00:00:00 2001
 From: Simon <simonzigon15@gmail.com>
-Date: Fri, 23 Jan 2026 10:00:59 +1030
-Subject: [PATCH] Include fixes to make build work
+Date: Sat, 24 Jan 2026 11:00:27 +1030
+Subject: [PATCH] Include fix
 
 ---
- drivers/mxc/gpu-viv/hal/os/linux/kernel/gc_hal_kernel_linux.h | 2 +-
- include/linux/rfnm-shared.h                                   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ include/linux/rfnm-shared.h | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)
 
-diff --git a/drivers/mxc/gpu-viv/hal/os/linux/kernel/gc_hal_kernel_linux.h b/drivers/mxc/gpu-viv/hal/os/linux/kernel/gc_hal_kernel_linux.h
-index a436edb11d9a..43beb7a06f73 100644
---- a/drivers/mxc/gpu-viv/hal/os/linux/kernel/gc_hal_kernel_linux.h
-+++ b/drivers/mxc/gpu-viv/hal/os/linux/kernel/gc_hal_kernel_linux.h
-@@ -318,7 +318,7 @@ _ConvertLogical2Physical(
-     OUT gctPHYS_ADDR_T * Physical
-     );
- 
--gctBOOL
-+gceSTATUS
- _QuerySignal(
-     IN gckOS Os,
-     IN gctSIGNAL Signal
 diff --git a/include/linux/rfnm-shared.h b/include/linux/rfnm-shared.h
-index 2753f3d298c5..8b6a72d33031 100644
+index dc3bf4f58e41..e30aba715ec7 100644
 --- a/include/linux/rfnm-shared.h
 +++ b/include/linux/rfnm-shared.h
-@@ -100,7 +100,7 @@ struct __attribute__((__packed__)) rfnm_bootconfig {
+@@ -92,14 +92,7 @@ struct __attribute__((__packed__)) rfnm_bootconfig {
  
  
  
+-
+-
+-
+-
+-
+-
+-
 -#include </home/davide/imx-rfnm-bsp/build/tmp/work-shared/imx8mp-rfnm/kernel-source/include/linux/rfnm-api.h>
 +#include <linux/rfnm-api.h>
  
