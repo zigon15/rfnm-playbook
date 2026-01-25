@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y \
     cmake \
     gcc-arm-none-eabi \
     binutils-arm-none-eabi \
+    e2fsprogs \
     && rm -rf /var/lib/apt/lists/*
 
 # Enable arm64 architecture and install ARM64 dev packages

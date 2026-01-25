@@ -8,7 +8,6 @@ rmmod /rfnm/kernel/rfnm_lime.ko
 rmmod /rfnm/kernel/rfnm_breakout.ko
 rmmod /rfnm/kernel/rfnm_granita.ko
 
-rmmod /rfnm/kernel/rfnm_eth.ko
 rmmod /rfnm/kernel/rfnm_usb_boost.ko
 rmmod /rfnm/kernel/rfnm_usb.ko
 rmmod /rfnm/kernel/rfnm_usb_function.ko
@@ -22,11 +21,9 @@ insmod /rfnm/kernel/la9310rfnm.ko
 insmod /rfnm/kernel/rfnm_lalib.ko
 insmod /rfnm/kernel/rfnm_daughterboard.ko
 insmod /rfnm/kernel/rfnm_usb_function.ko
-insmod /rfnm/kernel/rfnm_usb.ko file=/rfnm/scripts/backing_storage functionMask=0
+insmod /rfnm/kernel/rfnm_usb.ko file=/rfnm/scripts/backing_storage
 insmod /rfnm/kernel/rfnm_usb_boost.ko file=/rfnm/scripts/backing_storage
-insmod /rfnm/kernel/rfnm_eth.ko
 
 insmod /rfnm/kernel/rfnm_lime.ko
 insmod /rfnm/kernel/rfnm_breakout.ko
 insmod /rfnm/kernel/rfnm_granita.ko
-

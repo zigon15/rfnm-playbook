@@ -50,7 +50,6 @@ cd /work/scripts/la9310-driver
 echo_step "Building the Debian Root Filesystem"
 cd /work/scripts/debian
 ./build.sh
-./installFirmware.sh
 ./installKernelModules.sh
-./installRfnmModules.sh
-./installRfnmFirmware.sh
+./installRfnm.sh
+./installOverlay.sh
