@@ -71,15 +71,22 @@ fi
 
 # Unmount any mounted partitions on the device
 echo "Unmounting partitions..."
-umount "$DEVICE"* 2>/dev/null || true
+umount "$DEVICE"* 2>/dev/null || { echo "Warning: Some partitions may still be mounted, attempting to proceed..."; }
+
+# Wait for device to be ready
+echo "Waiting for device to be ready..."
+sleep 2
+partprobe "$DEVICE" 2>/dev/null || true
+partx -u "$DEVICE" 2>/dev/null || true
+sleep 1
 
 # Flash the image
 echo "Flashing image to $DEVICE (this may take a while)..."
-dd if="$IMAGE_FILE" of="$DEVICE" bs=4M status=progress conv=fsync
+dd if="$IMAGE_FILE" of="$DEVICE" bs=4M status=progress conv=fsync || { echo "Error: Failed to flash image to $DEVICE"; exit 1; }
 
 # Ensure all data is written
 echo "Syncing..."
-sync
+sync || { echo "Error: Failed to sync data"; exit 1; }
 
 echo "---------------------------------"
 echo "SUCCESS! Image flashed to $DEVICE"
