@@ -78,9 +78,18 @@ EOF
 # Second partition starts at sector 221184 (after partition 1) and uses remaining space
 # Explicit sector-based partitioning ensures no overlap with U-Boot.
 
-# Re-read partition table
+# Re-read partition table and wait for devices to be ready
 partprobe "$DEVICE"
-sleep 2
+partx -u "$DEVICE" 2>/dev/null || true
+sleep 3
+
+# Wait for partition devices to be created
+for i in {1..10}; do
+    if [ -b "${DEVICE}1" ] && [ -b "${DEVICE}2" ]; then
+        break
+    fi
+    sleep 0.5
+done
 
 #---- STEP 2: FLASH U-BOOT ----#
 echo "Flashing U-Boot to raw offset..."
@@ -91,18 +100,18 @@ PART1="${DEVICE}1"
 PART2="${DEVICE}2"
 
 echo "Formatting BOOT ($PART1)..."
-mkfs.vfat -n "BOOT" "$PART1"
+mkfs.vfat -n "BOOT" "$PART1" || { echo "Error: Failed to format FAT32 partition"; exit 1; }
 
 echo "Formatting ROOTFS ($PART2)..."
-mkfs.ext4 -F -L "rootfs" "$PART2"
+mkfs.ext4 -F -L "rootfs" "$PART2" || { echo "Error: Failed to format ext4 partition"; exit 1; }
 
 # --- COPY BOOT FILES ---
 echo "Mounting BOOT and copying kernel..."
 MOUNT_POINT_BOOT=$(mktemp -d)
-mount "$PART1" "$MOUNT_POINT_BOOT"
+mount "$PART1" "$MOUNT_POINT_BOOT" || { echo "Error: Failed to mount BOOT partition"; exit 1; }
 
-cp "$KERNEL_IMAGE" "$MOUNT_POINT_BOOT/"
-cp "$DTB_FILE" "$MOUNT_POINT_BOOT/"
+cp "$KERNEL_IMAGE" "$MOUNT_POINT_BOOT/" || { echo "Error: Failed to copy kernel image"; exit 1; }
+cp "$DTB_FILE" "$MOUNT_POINT_BOOT/" || { echo "Error: Failed to copy device tree blob"; exit 1; }
 
 # Optional: Generate a boot.scr on the fly so you don't have to type commands manually
 # This sets root=/dev/mmcblk1p2 (Partition 2)
@@ -122,23 +131,23 @@ else
     echo "WARNING: mkimage not found. You will need to type boot commands manually."
 fi
 
-umount "$MOUNT_POINT_BOOT"
-rmdir "$MOUNT_POINT_BOOT"
+umount "$MOUNT_POINT_BOOT" || { echo "Error: Failed to unmount BOOT partition"; exit 1; }
+rmdir "$MOUNT_POINT_BOOT" || { echo "Error: Failed to remove BOOT mount directory"; exit 1; }
 
 #---- STEP 4: COPY ROOT FILESYSTEM ----#
 echo "Mounting ROOTFS and copying Debian files (This may take a while)..."
 MOUNT_POINT_ROOT=$(mktemp -d)
-mount "$PART2" "$MOUNT_POINT_ROOT"
+mount "$PART2" "$MOUNT_POINT_ROOT" || { echo "Error: Failed to mount ROOTFS partition"; exit 1; }
 
 # Use rsync to preserve all permissions, links, and ownership
 # If you don't have rsync, use: cp -a "$DEBIAN_ROOT_FS/." "$MOUNT_POINT_ROOT/"
-rsync -aAX --info=progress2 "$DEBIAN_ROOT_FS/" "$MOUNT_POINT_ROOT/" --exclude="sys" --exclude="proc" --exclude="dev" --exclude="tmp"
+rsync -aAX --info=progress2 "$DEBIAN_ROOT_FS/" "$MOUNT_POINT_ROOT/" --exclude="sys" --exclude="proc" --exclude="dev" --exclude="tmp" || { echo "Error: Failed to copy root filesystem"; exit 1; }
 
 # Create mount point directories just in case they were excluded or missing
 mkdir -p "$MOUNT_POINT_ROOT/sys" "$MOUNT_POINT_ROOT/proc" "$MOUNT_POINT_ROOT/dev" "$MOUNT_POINT_ROOT/tmp"
 
-umount "$MOUNT_POINT_ROOT"
-rmdir "$MOUNT_POINT_ROOT"
+umount "$MOUNT_POINT_ROOT" || { echo "Error: Failed to unmount ROOTFS partition"; exit 1; }
+rmdir "$MOUNT_POINT_ROOT" || { echo "Error: Failed to remove ROOTFS mount directory"; exit 1; }
 
 echo "---------------------------------"
 echo "SUCCESS! SD Card is ready."
