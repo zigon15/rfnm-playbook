@@ -39,6 +39,8 @@ RUN apt-get update && apt-get install -y \
 # Enable arm64 architecture and install ARM64 dev packages
 RUN dpkg --add-architecture arm64 && \
     apt-get update && apt-get install -y \
+    qemu-user-static \
+    binfmt-support \
     libasound2-dev:arm64 \
     libdrm-dev:arm64 \
     && rm -rf /var/lib/apt/lists/*
@@ -55,9 +57,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Download and install qemu-aarch64-static for cross-architecture builds
-RUN wget https://github.com/multiarch/qemu-user-static/releases/latest/download/qemu-aarch64-static && \
-    chmod +x qemu-aarch64-static && \
-    mv qemu-aarch64-static /usr/bin/
+# RUN wget https://github.com/multiarch/qemu-user-static/releases/latest/download/qemu-aarch64-static && \
+#     chmod +x qemu-aarch64-static && \
+#     mv qemu-aarch64-static /usr/bin/
 
 # Set the working directory
 WORKDIR /work/scripts
