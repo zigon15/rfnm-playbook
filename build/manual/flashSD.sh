@@ -96,7 +96,7 @@ mkfs.ext4 -F -L "rootfs" "$PART2"
 # --- COPY BOOT FILES ---
 echo "Mounting BOOT and copying kernel..."
 MOUNT_POINT_BOOT=$(mktemp -d)
-mount "$PART1" "$MOUNT_POINT_BOOT"
+mount -o sync "$PART1" "$MOUNT_POINT_BOOT"
 
 cp "$KERNEL_IMAGE" "$MOUNT_POINT_BOOT/"
 cp "$DTB_FILE" "$MOUNT_POINT_BOOT/"
@@ -125,7 +125,7 @@ rmdir "$MOUNT_POINT_BOOT"
 #---- STEP 4: COPY ROOT FILESYSTEM ----#
 echo "Mounting ROOTFS and copying Debian files (This may take a while)..."
 MOUNT_POINT_ROOT=$(mktemp -d)
-mount "$PART2" "$MOUNT_POINT_ROOT"
+mount -o sync "$PART2" "$MOUNT_POINT_ROOT"
 
 # Use rsync to preserve all permissions, links, and ownership
 # If you don't have rsync, use: cp -a "$DEBIAN_ROOT_FS/." "$MOUNT_POINT_ROOT/"

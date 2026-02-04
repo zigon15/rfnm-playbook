@@ -34,13 +34,13 @@ RUN apt-get update && apt-get install -y \
     gcc-arm-none-eabi \
     binutils-arm-none-eabi \
     e2fsprogs \
+    qemu-user-static \
+    binfmt-support \
     && rm -rf /var/lib/apt/lists/*
 
 # Enable arm64 architecture and install ARM64 dev packages
 RUN dpkg --add-architecture arm64 && \
     apt-get update && apt-get install -y \
-    qemu-user-static \
-    binfmt-support \
     libasound2-dev:arm64 \
     libdrm-dev:arm64 \
     && rm -rf /var/lib/apt/lists/*

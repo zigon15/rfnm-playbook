@@ -11,10 +11,10 @@ scripts/config --disable CONFIG_MXC_GPU_VIV
 scripts/config --enable CONFIG_DRM_ETNAVIV
 scripts/config --enable CONFIG_DRM_ETNAVIV_THERMAL
 
-# Enable required modules
-# scripts/config --enable CONFIG_LEDS_RFNM_WSLED
-# scripts/config --enable CONFIG_RFNM_SI5510
-# scripts/config --enable CONFIG_RFNM_BOOTCONFIG
+# Disable aggressive stack zeroing that causes USB buffer allocation failures
+# Must disable ZERO and enable NONE to properly set choice block
+scripts/config --disable CONFIG_INIT_STACK_ALL_ZERO
+scripts/config --enable CONFIG_INIT_STACK_NONE
 
 # Apply config changes
 make olddefconfig
