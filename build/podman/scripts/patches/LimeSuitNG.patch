@@ -1,0 +1,26 @@
+From 376793ee9d869b974bc499ec00c6eab467f92628 Mon Sep 17 00:00:00 2001
+From: Simon <simonzigon15@gmail.com>
+Date: Sun, 8 Feb 2026 12:25:47 +1030
+Subject: [PATCH] Fixed for 6.6.36 kernel
+
+---
+ embedded/lms7002m/lms7002m.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/embedded/lms7002m/lms7002m.c b/embedded/lms7002m/lms7002m.c
+index 13ec95e..a8fe959 100644
+--- a/embedded/lms7002m/lms7002m.c
++++ b/embedded/lms7002m/lms7002m.c
+@@ -10,7 +10,8 @@
+ // #include <math.h>
+ // #include <stdarg.h>
+ // #include <stdbool.h>
+-#include <stddef.h>
++#include <linux/types.h>
++#include <linux/stddef.h>
+ // #include <stdio.h>
+ // #include <stdlib.h>
+ // #include <string.h>
+-- 
+2.51.0
+

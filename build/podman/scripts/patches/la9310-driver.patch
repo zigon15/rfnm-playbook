@@ -1,24 +1,46 @@
-From ca3a1b6a416b18165fd06ce24c5daecfc2979096 Mon Sep 17 00:00:00 2001
+From 10eb5282240bfefd97c28ef649bfc369efde693e Mon Sep 17 00:00:00 2001
 From: Simon <simonzigon15@gmail.com>
-Date: Sat, 24 Jan 2026 10:23:07 +1030
-Subject: [PATCH] Removed granita
+Date: Sun, 8 Feb 2026 20:47:11 +1030
+Subject: [PATCH] Fixes for new kernel
 
 ---
+ LimeSuiteNG                                  |   2 +-
  kernel_driver/la9310rfnm/Makefile            |   2 +-
+ kernel_driver/la9310rfnm/cache.S             |  61 +-
+ kernel_driver/la9310rfnm/la9310_rfnm.c       | 161 +++-
+ kernel_driver/la9310rfnm/rfnm_breakout_m.c   |   5 +-
  kernel_driver/la9310rfnm/rfnm_fe_granita0.c  | 923 -------------------
  kernel_driver/la9310rfnm/rfnm_fe_granita0.h  | 233 -----
+ kernel_driver/la9310rfnm/rfnm_gpt.c          |  10 +-
  kernel_driver/la9310rfnm/rfnm_granita.h      |  19 -
  kernel_driver/la9310rfnm/rfnm_granita_m.c    | 803 ----------------
  kernel_driver/la9310rfnm/rfnm_granita_rffc.c | 266 ------
- 6 files changed, 1 insertion(+), 2245 deletions(-)
+ kernel_driver/la9310rfnm/rfnm_lime_m.c       |   3 +-
+ kernel_driver/la9310rfnm/rfnm_tti.c          |  10 +-
+ kernel_driver/la9310rfnm/rfnm_usb.c          |   1 +
+ kernel_driver/la9310rfnm/rfnm_usb_boost.c    |   1 +
+ kernel_driver/la9310shiva/la9310_boot.c      |   4 +-
+ kernel_driver/la9310shiva/la9310_main_vspa.c |   8 +-
+ kernel_driver/la9310shiva/la9310_pci.c       |   2 +-
+ kernel_driver/la9310shiva/la9310_sysfs.c     |   4 +-
+ kernel_driver/la9310shiva/la9310_v2h.c       |   4 +-
+ kernel_driver/la9310shiva/la9310_wdog.c      |   2 +-
+ 21 files changed, 194 insertions(+), 2330 deletions(-)
  delete mode 100644 kernel_driver/la9310rfnm/rfnm_fe_granita0.c
  delete mode 100644 kernel_driver/la9310rfnm/rfnm_fe_granita0.h
  delete mode 100644 kernel_driver/la9310rfnm/rfnm_granita.h
  delete mode 100644 kernel_driver/la9310rfnm/rfnm_granita_m.c
  delete mode 100644 kernel_driver/la9310rfnm/rfnm_granita_rffc.c
 
+diff --git a/LimeSuiteNG b/LimeSuiteNG
+index e3daa38..376793e 160000
+--- a/LimeSuiteNG
++++ b/LimeSuiteNG
+@@ -1 +1 @@
+-Subproject commit e3daa38001162896837c4c382f0a78cbbffbd1d3
++Subproject commit 376793ee9d869b974bc499ec00c6eab467f92628
 diff --git a/kernel_driver/la9310rfnm/Makefile b/kernel_driver/la9310rfnm/Makefile
-index c483b20..2ece17d 100644
+index c483b20..3a3f5b2 100644
 --- a/kernel_driver/la9310rfnm/Makefile
 +++ b/kernel_driver/la9310rfnm/Makefile
 @@ -46,7 +46,7 @@ rfnm_lime-objs += ../../LimeSuiteNG/embedded/lms7002m/privates.o
@@ -30,6 +52,425 @@ index c483b20..2ece17d 100644
  
  obj-m += rfnm_lime.o rfnm_breakout.o
  
+diff --git a/kernel_driver/la9310rfnm/cache.S b/kernel_driver/la9310rfnm/cache.S
+index 971d89d..559ae26 100644
+--- a/kernel_driver/la9310rfnm/cache.S
++++ b/kernel_driver/la9310rfnm/cache.S
+@@ -1,6 +1,20 @@
+ #include <linux/linkage.h>
++#include <linux/version.h>
+ 
++/*
++ * Kernel 6.6+ provides assembler macros but doesn't export the cache functions.
++ * We provide our own implementations here.
++ *
++ * For kernel 6.6+: Use kernel's macros from asm/assembler.h
++ * For older kernels: Define our own macros
++ */
+ 
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
++/* Kernel 6.6+ provides macros in asm/assembler.h */
++#include <asm/assembler.h>
++
++#else
++/* Kernel < 6.6: Define our own macros */
+ 
+ 	.macro __dcache_op_workaround_clean_cache, op, addr
+ //alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
+@@ -44,8 +58,19 @@
+ 	dcache_by_myline_op \op, \domain, \start, \end, \tmp1, \tmp2, \fixup
+ 	.endm
+ 
++	.macro	dcache_line_size, reg, tmp
++	read_ctr	\tmp
++	ubfm		\tmp, \tmp, #16, #19	// cache line size encoding
++	mov		\reg, #4		// bytes per word
++	lsl		\reg, \reg, \tmp	// actual cache line size
++	.endm
+ 
++    	.macro	read_ctr, reg
++mrs	\reg, ctr_el0			// read CTR
++	nop
++	.endm
+ 
++#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0) */
+ 
+ 
+ /*
+@@ -59,25 +84,9 @@
+  *      - end     - kernel end address of region
+  */
+ 
+-	.macro	dcache_line_size, reg, tmp
+-	read_ctr	\tmp
+-	ubfm		\tmp, \tmp, #16, #19	// cache line size encoding
+-	mov		\reg, #4		// bytes per word
+-	lsl		\reg, \reg, \tmp	// actual cache line size
+-	.endm
+-
+-    	.macro	read_ctr, reg
+-mrs	\reg, ctr_el0			// read CTR
+-	nop
+-	.endm
+-
+-
+-SYM_FUNC_START_LOCAL(__dma_inv_area)
+-SYM_FUNC_START_PI(dcache_inval_poc)
+-        /* FALLTHROUGH */
+-
++SYM_FUNC_START(dcache_inval_poc)
+ /*
+- *      __dma_inv_area(start, end)
++ *      dcache_inval_poc(start, end)
+  *      - start   - virtual start address of region
+  *      - end     - virtual end address of region
+  */
+@@ -98,8 +107,7 @@ SYM_FUNC_START_PI(dcache_inval_poc)
+         b.lo    2b
+         dsb     sy
+         ret
+-SYM_FUNC_END_PI(dcache_inval_poc)
+-SYM_FUNC_END(__dma_inv_area)
++SYM_FUNC_END(dcache_inval_poc)
+ 
+ 
+ 
+@@ -114,19 +122,12 @@ SYM_FUNC_END(__dma_inv_area)
+  *	- start   - virtual start address of region
+  *	- end     - virtual end address of region
+  */
+-SYM_FUNC_START_LOCAL(__dma_clean_area)
+-SYM_FUNC_START_PI(dcache_clean_poc)
+-	/* FALLTHROUGH */
+-
++SYM_FUNC_START(dcache_clean_poc)
+ /*
+- *	__dma_clean_area(start, end)
++ *	dcache_clean_poc(start, end)
+  *	- start   - virtual start address of region
+  *	- end     - virtual end address of region
+  */
+ 	dcache_by_line_op cvac, sy, x0, x1, x2, x3
+ 	ret
+-SYM_FUNC_END_PI(dcache_clean_poc)
+-SYM_FUNC_END(__dma_clean_area)
+-
+-
+-
++SYM_FUNC_END(dcache_clean_poc)
+diff --git a/kernel_driver/la9310rfnm/la9310_rfnm.c b/kernel_driver/la9310rfnm/la9310_rfnm.c
+index e5a29fb..b0f7e8c 100644
+--- a/kernel_driver/la9310rfnm/la9310_rfnm.c
++++ b/kernel_driver/la9310rfnm/la9310_rfnm.c
+@@ -30,6 +30,7 @@
+ #include <linux/slab.h>
+ #include <linux/kernel.h>
+ #include <linux/device.h>
++#include <linux/of_reserved_mem.h>
+ #include <linux/module.h>
+ #include <linux/usb/composite.h>
+ #include <linux/err.h>
+@@ -130,6 +131,9 @@ struct rfnm_rx_la_cb {
+ };
+ 
+ struct rfnm_rx_usb_buf *rfnm_rx_usb_buf;
++static dma_addr_t rfnm_rx_usb_buf_dma;
++static bool iqusb_reserved_mem_initialized = false;
++static struct device *iqusb_init_device = NULL;
+ 
+ 
+ 
+@@ -179,6 +183,7 @@ struct usb_ep_queue_ele {
+ 	struct usb_request *req;
+ 	struct list_head head;
+ 	uint64_t usb_cc;
++	struct scatterlist sg;
+ };
+ 
+ struct rfnm_dev {
+@@ -211,16 +216,7 @@ void rfnm_pack16to12_aarch64(uint8_t * dest, uint8_t * src, uint32_t bytes);
+ void rfnm_unpack12to16_aarch64(uint8_t * dest, uint8_t * src, uint32_t bytes);
+ 
+ 
+-static inline size_t list_count_nodes(struct list_head *head)
+-{
+-	struct list_head *pos;
+-	size_t count = 0;
+-
+-	list_for_each(pos, head)
+-		count++;
+-
+-	return count;
+-}
++/* list_count_nodes() is now provided by kernel in include/linux/list.h (kernel 5.17+) */
+ 
+ struct __attribute__((__packed__)) rfnm_packet_head {
+ 		uint32_t check;
+@@ -391,7 +387,7 @@ wait:
+ 		if(rfnm_dev->wq_stop_usb) {
+ 			rfnm_dev->wq_stop_usb = 0;
+ 			printk("Stopping USB process");
+-			do_exit(0);
++			return 0; /* do_exit() not exported in kernel 6.6, return from workqueue handler */
+ 		}
+ 
+ 		//printk("kill\n");
+@@ -414,7 +410,6 @@ try_input:
+ 
+ 		//printk("DQ %lx\n", usb_ep_queue_ele->req->buf);
+ 
+-
+ #if 0
+ 
+ 		static int delay_wavedetct = 0;
+@@ -470,9 +465,16 @@ try_input:
+ 					printk("Q %ld\n", rfnm_rx_usb_buf_t->usb_cc);
+ 				}
+ #endif
++		void *saved_buf = usb_ep_queue_ele->req->buf;
++		if (usb_ep_queue_ele->req->num_sgs > 0) {
++			usb_ep_queue_ele->req->buf = NULL;
++		}
++
+ 		//memset(((uint8_t*) usb_ep_queue_ele->req->buf) + 32, 0xee, 16);
+ 
+ 		status = usb_ep_queue(usb_ep_queue_ele->ep, usb_ep_queue_ele->req, GFP_ATOMIC);
++		
++		usb_ep_queue_ele->req->buf = saved_buf;
+ 		if (status) {
+ 			printk("kill %s:  resubmit %d bytes --> %d\n",usb_ep_queue_ele->ep->name, usb_ep_queue_ele->req->length, status);
+ 			usb_ep_set_halt(usb_ep_queue_ele->ep);
+@@ -501,8 +503,15 @@ try_other_direction:
+ 		list_del(&usb_ep_queue_ele->head);
+ 		spin_unlock(&rfnm_usb_req_buffer_out_usb->list_lock);
+ 
++		void *saved_buf_out = usb_ep_queue_ele->req->buf;
++		if (usb_ep_queue_ele->req->num_sgs > 0) {
++			usb_ep_queue_ele->req->buf = NULL;
++		}
+ 
+ 		status = usb_ep_queue(usb_ep_queue_ele->ep, usb_ep_queue_ele->req, GFP_ATOMIC);
++		
++		usb_ep_queue_ele->req->buf = saved_buf_out;
++
+ 		if (status) {
+ 			printk("kill %s:  resubmit %d bytes --> %d\n",usb_ep_queue_ele->ep->name, usb_ep_queue_ele->req->length, status);
+ 			usb_ep_set_halt(usb_ep_queue_ele->ep);
+@@ -710,9 +719,18 @@ while(1) {
+ 				*gpio4 = *gpio4 | (0x1 << 8); *gpio4 = *gpio4 & ~(0x1 << 8);
+ 				rfnm_stream_stats.usb_rx_error[0]++;
+ 			} else {
++				dma_addr_t phys_addr = rfnm_rx_usb_buf_dma + (rfnm_dev->rx_usb_cb.adc_buf[la_adc_id] * sizeof(struct rfnm_rx_usb_buf));
++				
+ 				usb_ep_queue_ele->req->buf = (uint8_t *) &rfnm_rx_usb_buf[rfnm_dev->rx_usb_cb.adc_buf[la_adc_id]];
+ 				usb_ep_queue_ele->req->length = sizeof(struct rfnm_rx_usb_buf);
+ 
++				sg_init_table(&usb_ep_queue_ele->sg, 1);
++				sg_set_page(&usb_ep_queue_ele->sg, pfn_to_page(PFN_DOWN(phys_addr)), 
++						sizeof(struct rfnm_rx_usb_buf), offset_in_page(phys_addr));
++				
++				usb_ep_queue_ele->req->sg = &usb_ep_queue_ele->sg;
++				usb_ep_queue_ele->req->num_sgs = 1;
++
+ 				//printk("scheduling\n");
+ 
+ 
+@@ -979,7 +997,7 @@ exit_tasklet_no_unlock:
+ 	if(rfnm_dev->wq_stop_in) {
+ 		printk("stopping IN process\n");
+ 		rfnm_dev->wq_stop_in = 0;
+-		do_exit(0);
++		return 0; /* do_exit() not exported in kernel 6.6, return from workqueue handler */
+ 	}
+ 
+ }
+@@ -1226,6 +1244,10 @@ rfnm_tx_la_cb
+ 
+ 
+ #if 1
++			sg_init_table(&usb_ep_queue_ele->sg, 1);
++			sg_set_page(&usb_ep_queue_ele->sg, virt_to_page(usb_ep_queue_ele->req->buf),
++					usb_ep_queue_ele->req->length, offset_in_page(usb_ep_queue_ele->req->buf));
++
+ 			struct usb_ep_queue_ele usb_ep_queue_ele_tmp;
+ 
+ 			memcpy(&usb_ep_queue_ele_tmp, usb_ep_queue_ele, sizeof(struct usb_ep_queue_ele));
+@@ -1252,7 +1274,7 @@ rfnm_tx_la_cb
+ 		if(rfnm_dev->wq_stop_out) {
+ 			printk("stopping OUT process\n");
+ 			rfnm_dev->wq_stop_out = 0;
+-			do_exit(0);
++			return 0; /* do_exit() not exported in kernel 6.6, return from workqueue handler */
+ 		}
+ 
+ 		
+@@ -1305,7 +1327,7 @@ int rfnm_callback_deinit(void)
+ 
+ 
+ 
+-static void rfnm_submit_usb_req_in(struct usb_ep *ep, struct usb_request *req)
++void rfnm_submit_usb_req_in(struct usb_ep *ep, struct usb_request *req)
+ {
+ 	struct usb_composite_dev	*cdev;
+ 	struct f_sourcesink		*ss = ep->driver_data;
+@@ -1417,7 +1439,7 @@ EXPORT_SYMBOL_GPL(rfnm_submit_usb_req_in);
+ 
+ 
+ 
+-static void rfnm_submit_usb_req_out(struct usb_ep *ep, struct usb_request *req)
++void rfnm_submit_usb_req_out(struct usb_ep *ep, struct usb_request *req)
+ {
+ 	struct usb_composite_dev	*cdev;
+ 	struct f_sourcesink		*ss = ep->driver_data;
+@@ -1692,18 +1714,7 @@ static ssize_t dfs_rfnm_stream_status_read(struct file *f, char *buffer, size_t
+ 	return simple_read_from_buffer(buffer, len, offset, data, data_len);
+ }
+ 
+-static inline struct task_struct *
+-kthread_run_on_cpu(int (*threadfn)(void *data), void *data,
+-			unsigned int cpu, const char *namefmt)
+-{
+-	struct task_struct *p;
+-
+-	p = kthread_create_on_cpu(threadfn, data, cpu, namefmt);
+-	if (!IS_ERR(p))
+-		wake_up_process(p);
+-
+-	return p;
+-}
++/* kthread_run_on_cpu() is now provided by kernel in include/linux/kthread.h (kernel 5.17+) */
+ 
+ 
+ const struct file_operations dfs_rfnm_stream_fops = {
+@@ -1854,13 +1865,81 @@ static int __init la9310_rfnm_init(void)
+ 	rfnm_bufdesc_tx = (struct rfnm_bufdesc_tx *) memremap(0x96400000 + (sizeof(struct rfnm_bufdesc_rx) * RFNM_ADC_BUFCNT), SZ_64M, MEMREMAP_WB);
+ 	dev_info(la9310_dev->dev, "Mapped rfnm_bufdesc_tx from %x to %lx size %d\n", 0x96400000 + (sizeof(struct rfnm_bufdesc_rx) * RFNM_ADC_BUFCNT), rfnm_bufdesc_tx, (sizeof(struct rfnm_bufdesc_tx) * RFNM_DAC_BUFCNT));
+ 
+-	rfnm_rx_usb_buf = (struct rfnm_rx_usb_buf *) memremap(
+-						0x96400000 +  (sizeof(struct rfnm_bufdesc_rx) * RFNM_ADC_BUFCNT) + SZ_64M, 
+-						sizeof(struct rfnm_rx_usb_buf) * RFNM_RX_USB_BUF_SIZE, MEMREMAP_WB);
++	size_t buffer_size = sizeof(struct rfnm_rx_usb_buf) * RFNM_RX_USB_BUF_SIZE;
++	int ret;
++
++	// DEBUG: Detailed device tree and reserved memory investigation
++	dev_info(la9310_dev->dev, "=== Reserved Memory Debug Start ===\n");
++	dev_info(la9310_dev->dev, "Endpoint device: %s (of_node=%p)\n",
++		dev_name(la9310_dev->dev), la9310_dev->dev->of_node);
++
++	// Initialize reserved memory using parent PCIe controller device
++	// The PCIe endpoint (la9310_dev->dev) doesn't have memory-region in DT,
++	// but its parent PCIe controller does. Use parent for reservation.
++	struct device *pcie_controller = la9310_dev->dev->parent;
++	if (pcie_controller) {
++		dev_info(la9310_dev->dev, "Parent device: %s (of_node=%p)\n",
++			dev_name(pcie_controller), pcie_controller->of_node);
++
++		if (pcie_controller->of_node) {
++			struct property *prop = of_find_property(pcie_controller->of_node,
++								  "memory-region", NULL);
++			dev_info(la9310_dev->dev, "Parent has memory-region property: %s\n",
++				prop ? "YES" : "NO");
++		}
++
++		dev_info(la9310_dev->dev, "Attempting of_reserved_mem_device_init on parent...\n");
++		ret = of_reserved_mem_device_init(pcie_controller);
++		dev_info(la9310_dev->dev, "Parent init returned: %d\n", ret);
+ 
+-	dev_info(la9310_dev->dev, "Mapped rfnm_rx_usb_buf from %x to %lx size %d\n", 
+-			0x96400000 +  (sizeof(struct rfnm_bufdesc_rx) * RFNM_ADC_BUFCNT) + SZ_64M, 
+-			rfnm_rx_usb_buf, sizeof(struct rfnm_rx_usb_buf) * RFNM_RX_USB_BUF_SIZE);
++		if (ret) {
++			dev_warn(la9310_dev->dev, "Failed to init reserved memory on parent: %d\n", ret);
++		} else {
++			iqusb_reserved_mem_initialized = true;
++			iqusb_init_device = pcie_controller;
++			dev_info(la9310_dev->dev, "Initialized iqusb reserved memory region from parent\n");
++		}
++	} else {
++		dev_warn(la9310_dev->dev, "No parent device found for reserved memory init\n");
++		ret = -ENODEV;
++	}
++
++	// If parent init failed, try fallback with endpoint device
++	if (ret && !iqusb_reserved_mem_initialized) {
++		dev_info(la9310_dev->dev, "Attempting of_reserved_mem_device_init on endpoint...\n");
++		ret = of_reserved_mem_device_init(la9310_dev->dev);
++		dev_info(la9310_dev->dev, "Endpoint init returned: %d\n", ret);
++
++		if (ret) {
++			dev_warn(la9310_dev->dev, "Failed to init reserved memory: %d, trying normal DMA\n", ret);
++		} else {
++			iqusb_reserved_mem_initialized = true;
++			iqusb_init_device = la9310_dev->dev;
++			dev_info(la9310_dev->dev, "Initialized iqusb reserved memory region\n");
++		}
++	}
++	dev_info(la9310_dev->dev, "=== Reserved Memory Debug End ===\n");
++
++	// Allocate DMA-capable buffers (will use iqusb pool if available)
++	rfnm_rx_usb_buf = dma_alloc_coherent(la9310_dev->dev, buffer_size,
++					      &rfnm_rx_usb_buf_dma, GFP_KERNEL);
++	if (!rfnm_rx_usb_buf) {
++		dev_err(la9310_dev->dev, "Failed to allocate USB RX buffers from DMA pool\n");
++		if (iqusb_reserved_mem_initialized && iqusb_init_device)
++			of_reserved_mem_device_release(iqusb_init_device);
++		return -ENOMEM;
++	}
++
++	dev_info(la9310_dev->dev, "Allocated USB RX buffers: phys=0x%llx virt=%p size=%zu\n",
++			(u64)rfnm_rx_usb_buf_dma, rfnm_rx_usb_buf, buffer_size);
++
++	// Verify physical address matches M7 firmware expectations
++	if (rfnm_rx_usb_buf_dma < 0x9D400000 || rfnm_rx_usb_buf_dma > 0xA3400000) {
++		dev_warn(la9310_dev->dev,
++			 "WARNING: USB buffer at unexpected address 0x%llx (expected ~0x9D400000)\n",
++			 (u64)rfnm_rx_usb_buf_dma);
++		dev_warn(la9310_dev->dev, "This may cause M7/VSPA communication issues!\n");
++	}
+ 
+ 
+ 	//rfnm_rx_usb_buf = kzalloc((sizeof(struct rfnm_rx_usb_buf) * RFNM_RX_USB_BUF_SIZE), GFP_KERNEL);
+@@ -1979,7 +2058,19 @@ static void  __exit la9310_rfnm_exit(void)
+ 
+ 	kfree(rfnm_dev);
+ 	kfree(tmp_usb_buffer_copy_to_be_deprecated);
+-	//kfree(rfnm_rx_usb_buf);
++
++	if (rfnm_rx_usb_buf) {
++		dma_free_coherent(la9310_dev->dev,
++				  sizeof(struct rfnm_rx_usb_buf) * RFNM_RX_USB_BUF_SIZE,
++				  rfnm_rx_usb_buf, rfnm_rx_usb_buf_dma);
++		rfnm_rx_usb_buf = NULL;
++	}
++
++	if (iqusb_reserved_mem_initialized && iqusb_init_device) {
++		of_reserved_mem_device_release(iqusb_init_device);
++		iqusb_reserved_mem_initialized = false;
++		iqusb_init_device = NULL;
++	}
+ 	
+ 
+ 	//tasklet_kill(&rfnm_tasklet_in);
+diff --git a/kernel_driver/la9310rfnm/rfnm_breakout_m.c b/kernel_driver/la9310rfnm/rfnm_breakout_m.c
+index 3e31af4..152f06c 100644
+--- a/kernel_driver/la9310rfnm/rfnm_breakout_m.c
++++ b/kernel_driver/la9310rfnm/rfnm_breakout_m.c
+@@ -167,13 +167,12 @@ static int rfnm_breakout_probe(struct spi_device *spi)
+ 	return 0;
+ }
+ 
+-static int rfnm_breakout_remove(struct spi_device *spi)
++static void rfnm_breakout_remove(struct spi_device *spi)
+ {
+ 
+ 	struct rfnm_dgb *dgb_dt;
+ 	dgb_dt = spi_get_drvdata(spi);
+-	rfnm_dgb_unreg(dgb_dt); 
+-	return 0;
++	rfnm_dgb_unreg(dgb_dt);
+ }
+ 
+ static const struct spi_device_id rfnm_breakout_ids[] = {
 diff --git a/kernel_driver/la9310rfnm/rfnm_fe_granita0.c b/kernel_driver/la9310rfnm/rfnm_fe_granita0.c
 deleted file mode 100644
 index 52fa1e0..0000000
@@ -1199,6 +1640,29 @@ index c291b7b..0000000
 -
 -#endif 
 \ No newline at end of file
+diff --git a/kernel_driver/la9310rfnm/rfnm_gpt.c b/kernel_driver/la9310rfnm/rfnm_gpt.c
+index ad5df5c..8c7495a 100644
+--- a/kernel_driver/la9310rfnm/rfnm_gpt.c
++++ b/kernel_driver/la9310rfnm/rfnm_gpt.c
+@@ -16,9 +16,17 @@
+ #include <linux/of.h>
+ #include <linux/of_address.h>
+ #include <linux/of_irq.h>
+-#include <soc/imx/timer.h>
++/* #include <soc/imx/timer.h> */ /* Header removed in kernel 6.6 */
+ #include <linux/init.h>
+ 
++/* enum imx_gpt_type was in soc/imx/timer.h, define locally */
++enum imx_gpt_type {
++	GPT_TYPE_IMX1,		/* i.MX1 */
++	GPT_TYPE_IMX21,		/* i.MX21/27 */
++	GPT_TYPE_IMX31,		/* i.MX31/35/25/37/51/6Q */
++	GPT_TYPE_IMX6DL,	/* i.MX6DL/SX/SL */
++};
++
+ #include <linux/module.h>
+ #include <linux/platform_device.h>
+ 
 diff --git a/kernel_driver/la9310rfnm/rfnm_granita.h b/kernel_driver/la9310rfnm/rfnm_granita.h
 deleted file mode 100644
 index 301182c..0000000
@@ -2306,6 +2770,186 @@ index a913069..0000000
 -	return set_freq;
 -}
 \ No newline at end of file
+diff --git a/kernel_driver/la9310rfnm/rfnm_lime_m.c b/kernel_driver/la9310rfnm/rfnm_lime_m.c
+index bd38bf3..d1d8210 100644
+--- a/kernel_driver/la9310rfnm/rfnm_lime_m.c
++++ b/kernel_driver/la9310rfnm/rfnm_lime_m.c
+@@ -687,7 +687,7 @@ static int rfnm_lime_probe(struct spi_device *spi)
+ 	return 0;
+ }
+ 
+-static int rfnm_lime_remove(struct spi_device *spi)
++static void rfnm_lime_remove(struct spi_device *spi)
+ {
+ 	struct rfnm_dgb *dgb_dt;
+ 	dgb_dt = spi_get_drvdata(spi);
+@@ -698,7 +698,6 @@ static int rfnm_lime_remove(struct spi_device *spi)
+ 
+ 	rfnm_gpio_clear(dgb_dt->dgb_id, RFNM_DGB_GPIO3_22); // 1.4V LMS
+ 	rfnm_gpio_clear(dgb_dt->dgb_id, RFNM_DGB_GPIO4_8); // 1.25V LMS
+-	return 0;
+ }
+ 
+ static const struct spi_device_id rfnm_lime_ids[] = {
+diff --git a/kernel_driver/la9310rfnm/rfnm_tti.c b/kernel_driver/la9310rfnm/rfnm_tti.c
+index a63dfae..64a6ee1 100644
+--- a/kernel_driver/la9310rfnm/rfnm_tti.c
++++ b/kernel_driver/la9310rfnm/rfnm_tti.c
+@@ -16,9 +16,17 @@
+ #include <linux/of.h>
+ #include <linux/of_address.h>
+ #include <linux/of_irq.h>
+-#include <soc/imx/timer.h>
++/* #include <soc/imx/timer.h> */ /* Header removed in kernel 6.6 */
+ #include <linux/init.h>
+ 
++/* enum imx_gpt_type was in soc/imx/timer.h, define locally */
++enum imx_gpt_type {
++	GPT_TYPE_IMX1,		/* i.MX1 */
++	GPT_TYPE_IMX21,		/* i.MX21/27 */
++	GPT_TYPE_IMX31,		/* i.MX31/35/25/37/51/6Q */
++	GPT_TYPE_IMX6DL,	/* i.MX6DL/SX/SL */
++};
++
+ #include <linux/module.h>
+ #include <linux/platform_device.h>
+ 
+diff --git a/kernel_driver/la9310rfnm/rfnm_usb.c b/kernel_driver/la9310rfnm/rfnm_usb.c
+index 3cfc900..82336a3 100644
+--- a/kernel_driver/la9310rfnm/rfnm_usb.c
++++ b/kernel_driver/la9310rfnm/rfnm_usb.c
+@@ -26,6 +26,7 @@
+ #include <linux/kernel.h>
+ #include <linux/usb/ch9.h>
+ #include <linux/module.h>
++#include <linux/device.h>
+ #include <linux/io.h>
+ #include <linux/rfnm-shared.h>
+ 
+diff --git a/kernel_driver/la9310rfnm/rfnm_usb_boost.c b/kernel_driver/la9310rfnm/rfnm_usb_boost.c
+index 56cabaf..157750a 100644
+--- a/kernel_driver/la9310rfnm/rfnm_usb_boost.c
++++ b/kernel_driver/la9310rfnm/rfnm_usb_boost.c
+@@ -26,6 +26,7 @@
+ #include <linux/kernel.h>
+ #include <linux/usb/ch9.h>
+ #include <linux/module.h>
++#include <linux/device.h>
+ #include <linux/io.h>
+ #include <linux/rfnm-shared.h>
+ 
+diff --git a/kernel_driver/la9310shiva/la9310_boot.c b/kernel_driver/la9310shiva/la9310_boot.c
+index 0c6ad05..e149a3c 100644
+--- a/kernel_driver/la9310shiva/la9310_boot.c
++++ b/kernel_driver/la9310shiva/la9310_boot.c
+@@ -145,12 +145,12 @@ int la9310_load_rtos_img(struct la9310_dev *la9310_dev)
+ 	dma_addr=dma_map_page_attrs(&la9310_dev->pdev->dev,
+ 			virt_to_page(dma_region->vaddr),
+ 			offset_in_page(dma_region->vaddr), fw_size,
+-			(enum dma_data_direction)PCI_DMA_TODEVICE, 0);
++			(enum dma_data_direction)DMA_TO_DEVICE, 0);
+ 	dev_info(la9310_dev->dev,"### dma_region->vaddr %px dma_addr %px\n",dma_region->vaddr, (void*)dma_addr);
+ 
+ #else
+ 	pci_map_single(la9310_dev->pdev, dma_region->vaddr,
+-			fw_size, PCI_DMA_TODEVICE);
++			fw_size, DMA_TO_DEVICE);
+ #endif
+  
+ 	dev_info(la9310_dev->dev, "udev Firmware [%s] - Addr %px, size %d\n",
+diff --git a/kernel_driver/la9310shiva/la9310_main_vspa.c b/kernel_driver/la9310shiva/la9310_main_vspa.c
+index 171b146..86b4826 100644
+--- a/kernel_driver/la9310shiva/la9310_main_vspa.c
++++ b/kernel_driver/la9310shiva/la9310_main_vspa.c
+@@ -280,12 +280,12 @@ vspa_mem_initialization(struct vspa_device *vspadev)
+ 			 dma_addr=dma_map_page_attrs(&vspadev->pdev->dev,
+ 				virt_to_page(vspa_dma_region->vaddr),
+ 				offset_in_page(vspa_dma_region->vaddr), z_dma_req.byte_cnt,
+-				(enum dma_data_direction)PCI_DMA_TODEVICE, 0);
++				(enum dma_data_direction)DMA_TO_DEVICE, 0);
+ 			 dev_info(vspadev->dev,"### vspa_dma_region->vaddr %px dma_addr %px\n",
+ 					 vspa_dma_region->vaddr,(void*)dma_addr);
+ #else
+ 			pci_map_single(vspadev->pdev, vspa_dma_region->vaddr,
+-				z_dma_req.byte_cnt, PCI_DMA_TODEVICE);
++				z_dma_req.byte_cnt, DMA_TO_DEVICE);
+ #endif
+ 			dma_wmb();
+ 			z_dma_req.axi_addr = vspa_dma_region->phys_addr;
+@@ -578,11 +578,11 @@ vspa_fw_dma_write(struct la9310_dev *la9310_dev, struct dma_param *linfo,
+ 		dma_addr=dma_map_page_attrs(&vspadev->pdev->dev,
+ 				virt_to_page(vspa_dma_region->vaddr),
+ 				offset_in_page(vspa_dma_region->vaddr), dma_req.byte_cnt,
+-				(enum dma_data_direction)PCI_DMA_TODEVICE, 0);
++				(enum dma_data_direction)DMA_TO_DEVICE, 0);
+ 		dev_info(vspadev->dev,"### vspa_dma_region->vaddr %px dma_addr %px\n",vspa_dma_region->vaddr, (void*)dma_addr);
+ #else
+ 		pci_map_single(vspadev->dev, vspa_dma_region->vaddr,
+-				dma_req.byte_cnt, PCI_DMA_TODEVICE);
++				dma_req.byte_cnt, DMA_TO_DEVICE);
+ #endif
+ 		dma_wmb();
+ 		dma_req.axi_addr = vspa_dma_region->phys_addr;
+diff --git a/kernel_driver/la9310shiva/la9310_pci.c b/kernel_driver/la9310shiva/la9310_pci.c
+index 0fd8464..256ba53 100644
+--- a/kernel_driver/la9310shiva/la9310_pci.c
++++ b/kernel_driver/la9310shiva/la9310_pci.c
+@@ -478,7 +478,7 @@ static int __init la9310_pcidev_init(void)
+ 		goto out;
+ 	}
+ 
+-	la9310_class = class_create(THIS_MODULE, driver_name);
++	la9310_class = class_create(driver_name);
+ 	if (IS_ERR(la9310_class)) {
+ 		pr_err("%s:%d Error in creating (%s) class\n",
+ 			__func__, __LINE__, driver_name);
+diff --git a/kernel_driver/la9310shiva/la9310_sysfs.c b/kernel_driver/la9310shiva/la9310_sysfs.c
+index 3b0c5c6..e720c25 100644
+--- a/kernel_driver/la9310shiva/la9310_sysfs.c
++++ b/kernel_driver/la9310shiva/la9310_sysfs.c
+@@ -79,11 +79,11 @@ la9310_show_ep_log(struct device *dev,
+         dma_addr=dma_map_page_attrs(&la9310_dev->pdev->dev,
+                         virt_to_page(ep_log->buf),
+                         offset_in_page(ep_log->buf), ep_log->len,
+-                        (enum dma_data_direction)PCI_DMA_TODEVICE, 0);
++                        (enum dma_data_direction)DMA_TO_DEVICE, 0);
+ 	 dev_info(la9310_dev->dev,"### dep_log->buf %px dma_addr %px\n",ep_log->buf, (void*)dma_addr);
+ #else
+   	pci_map_single(la9310_dev->pdev, ep_log->buf, ep_log->len,
+-		       PCI_DMA_FROMDEVICE);
++		       DMA_FROM_DEVICE);
+ #endif
+ 	log_len = la9310_collect_ep_log(ep_log, buf);
+ 	if (log_len == 0) {
+diff --git a/kernel_driver/la9310shiva/la9310_v2h.c b/kernel_driver/la9310shiva/la9310_v2h.c
+index cf93462..2773742 100644
+--- a/kernel_driver/la9310shiva/la9310_v2h.c
++++ b/kernel_driver/la9310shiva/la9310_v2h.c
+@@ -362,9 +362,9 @@ v2h_tasklet_handler(unsigned long data)
+ 						     host_phys_addr);
+ 				headroom_ptr =
+ 					(struct v2h_headroom *) (virt_addr);
+-				pci_map_single(la9310_dev->pdev, virt_addr,
++				dma_map_single(&la9310_dev->pdev->dev, virt_addr,
+ 					       V2H_MAX_SKB_BUFF_SIZE,
+-					       PCI_DMA_FROMDEVICE);
++					       DMA_FROM_DEVICE);
+ 				dma_wmb();
+ 				skb = (struct sk_buff *) headroom_ptr->
+ 					skb_ptr;
+diff --git a/kernel_driver/la9310shiva/la9310_wdog.c b/kernel_driver/la9310shiva/la9310_wdog.c
+index 5642aa7..ae11a3c 100644
+--- a/kernel_driver/la9310shiva/la9310_wdog.c
++++ b/kernel_driver/la9310shiva/la9310_wdog.c
+@@ -347,7 +347,7 @@ static int create_wdog_cdevs(struct wdog_dev *wdog_dev)
+ 
+ 	wdog_dev->wdog_dev_major = MAJOR(wdog_dev->wdog_dev_number);
+ 
+-	wdog_dev->wdog_class = class_create(THIS_MODULE, "la9310wdog");
++	wdog_dev->wdog_class = class_create("la9310wdog");
+ 	if (wdog_dev->wdog_class == NULL) {
+ 		pr_err("%s:Cannot allocate major number\n",
+ 		       __func__);
 -- 
 2.51.0
 
