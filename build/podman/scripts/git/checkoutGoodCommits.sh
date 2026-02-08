@@ -4,7 +4,7 @@ set -e
 
 #-- Clean and checkout known good commits for all repositories
 cd /work/build/imx8mp-kernel
-git reset --hard 40192a2e6ccbc413deab8ff00aa424a6c1241065
+git reset --hard d0d8e7db2919192bb3f8c84c0dd3a115f9e516e6
 git clean -fdx
 
 cd /work/build/imx8mp-uboot
