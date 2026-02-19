@@ -1,0 +1,3 @@
+KWIN_DRM_DEVICES=/dev/dri/card1
+XCURSOR_THEME=breeze_cursors
+XCURSOR_SIZE=24

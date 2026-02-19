@@ -28,6 +28,7 @@ then
     fi
 fi
 
-/rfnm/scripts/load_drivers &
+# /rfnm/scripts/load_drivers &
+/rfnm/scripts/enable_usb-a &
 
 exit 0

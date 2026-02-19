@@ -27,7 +27,17 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
 
     # 4. Install and enable SSH
     apt-get update
-    apt-get install -y openssh-server systemd-resolved pciutils systemd-timesyncd htop
+
+    # Base utilities
+    apt-get install -y \
+        openssh-server \
+        systemd-resolved \
+        pciutils \
+        systemd-timesyncd \
+        htop \
+        sudo \
+        wget \
+        u-boot-tools 
 
     # 5. Enable networking
     systemctl enable systemd-networkd

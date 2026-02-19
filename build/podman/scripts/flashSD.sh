@@ -117,7 +117,7 @@ cp "$DTB_FILE" "$MOUNT_POINT_BOOT/" || { echo "Error: Failed to copy device tree
 # This sets root=/dev/mmcblk1p2 (Partition 2)
 echo "Generating boot.cmd..."
 cat << 'EOF' > "$MOUNT_POINT_BOOT/boot.cmd"
-setenv bootargs console=ttymxc1,115200 earlycon root=/dev/mmcblk1p2 rootwait rw
+setenv bootargs console=tty0 console=ttymxc1,115200 earlycon root=/dev/mmcblk1p2 rootwait rw
 load mmc 1:1 ${loadaddr} Image
 load mmc 1:1 ${fdt_addr} imx8mp-rfnm.dtb
 booti ${loadaddr} - ${fdt_addr}
