@@ -37,7 +37,8 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
         htop \
         sudo \
         wget \
-        u-boot-tools 
+        u-boot-tools \
+        build-essential
 
     # 5. Enable networking
     systemctl enable systemd-networkd
@@ -46,6 +47,9 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
 
     ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
-    # 6. Cleanup
+    # 6. Update dynamic linker cache (for GPU libs from overlay)
+    ldconfig
+
+    # 7. Cleanup
     apt-get clean
 EOF

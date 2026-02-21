@@ -52,7 +52,8 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
         htop \
         sudo \
         wget \
-        u-boot-tools 
+        u-boot-tools \
+        build-essential
 
     # Enable networking
     systemctl enable systemd-networkd
