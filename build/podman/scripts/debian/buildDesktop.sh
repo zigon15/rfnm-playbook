@@ -17,10 +17,17 @@ fi
 # Ensure qemu is present inside rootfs
 cp /usr/bin/qemu-aarch64-static "$BUILD_DIR/usr/bin/"
 
-# Copy overlay if present
-if [ -d "./rootfs-overlay" ]; then
-    cp -r ./rootfs-overlay/* "$BUILD_DIR/"
-fi
+
+# Mount virtual filesystems needed by systemd inside chroot
+mount -t proc proc "$BUILD_DIR/proc"
+mount -t sysfs sysfs "$BUILD_DIR/sys"
+mount --bind /dev "$BUILD_DIR/dev"
+
+# Ensure cleanup on exit
+cleanup() {
+    umount "$BUILD_DIR/dev" "$BUILD_DIR/sys" "$BUILD_DIR/proc" 2>/dev/null || true
+}
+trap cleanup EXIT
 
 # Run configuration inside chroot
 chroot "$BUILD_DIR" /bin/bash <<EOF
@@ -62,21 +69,26 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
 
     ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
-    # Graphics stack (etnaviv)
+    # Display stack runtime dependencies (Vivante GPU userspace comes from rootfs overlay)
     apt-get install -y \
-        mesa-utils \
-        mesa-vulkan-drivers \
-        libgl1-mesa-dri \
-        libgbm1 \
         libdrm2 \
+        libpixman-1-0 \
+        libxkbcommon0 \
+        libwayland-server0 \
+        libwayland-client0 \
+        libpam0g \
+        libinput10 \
+        libseat1 \
+        libva2 \
+        libva-drm2 \
         xwayland \
         kwin-wayland
 
     # KDE Desktop
     apt-get install -y task-kde-desktop
 
-    # GPU debug tools
-    apt-get install -y vainfo
+    # Update dynamic linker cache
+    ldconfig
 
     # Mask services that fail on this hardware and cause boot delays
     systemctl mask plasma-powerdevil.service power-profiles-daemon.service

@@ -1,2 +1,0 @@
-Usage: -c /dev/video8 -f test.jpg
-Set the dev node to the encoder or decoder.

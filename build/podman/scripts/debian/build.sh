@@ -10,11 +10,6 @@ mkdir -p $BUILD_DIR
 debootstrap --arch=arm64 --foreign trixie "$BUILD_DIR" http://deb.debian.org/debian
 cp /usr/bin/qemu-aarch64-static "$BUILD_DIR/usr/bin/"
 
-# Copy configuration overlay
-if [ -d "./rootfs-overlay" ]; then
-    cp -r "./rootfs-overlay/"* "$BUILD_DIR/"
-fi
-
 chroot "$BUILD_DIR" /bin/bash <<EOF
     # 1. Finish the bootstrap process
     /debootstrap/debootstrap --second-stage

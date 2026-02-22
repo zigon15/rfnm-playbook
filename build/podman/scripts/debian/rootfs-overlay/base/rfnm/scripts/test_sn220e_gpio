@@ -1,0 +1,9 @@
+gpioset 4 27=1
+sleep 0.1
+gpioset 4 27=0
+
+#uart4 tx = 5-29
+
+#while true; do gpioset 4 28=0; gpioset 4 28=1; gpioset 4 29=0; gpioset 4 29=1; done
+#while true; do gpioset 4 28=0; gpioset 4 28=1; gpioset 4 29=0; gpioset 4 29=1; done
+while true; do gpioset 4 29=0; gpioset 4 29=1; done

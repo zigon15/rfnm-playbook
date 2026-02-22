@@ -1,7 +1,0 @@
-echo 0 > /sys/class/pwm/pwmchip1/export
-echo 1 > /sys/class/pwm/pwmchip1/pwm0/enable
-echo 50000 > /sys/class/pwm/pwmchip1/pwm0/period
-# full throttle:
-echo 0 > /sys/class/pwm/pwmchip1/pwm0/duty_cycle
-# somewhat full throttle: 
-#echo 40000 > /sys/class/pwm/pwmchip1/pwm0/duty_cycle
