@@ -1,53 +1,33 @@
 #!/bin/sh
-set -e
 
 #---- Configurable Variables ----#
 BUILD_DIR='/work/build/debian'
 ROOT_PASSWORD="rfnm"
-DEBIAN_RELEASE="trixie"
-MIRROR="http://deb.debian.org/debian"
 
-mkdir -p "$BUILD_DIR"
+#---- Create Debian Root Filesystem ----#
+mkdir -p $BUILD_DIR
 
-# Only run debootstrap if rootfs not already created
-if [ ! -f "$BUILD_DIR/debootstrap/debootstrap" ]; then
-    debootstrap --arch=arm64 --foreign "$DEBIAN_RELEASE" "$BUILD_DIR" "$MIRROR"
-fi
-
-# Ensure qemu is present inside rootfs
+debootstrap --arch=arm64 --foreign trixie "$BUILD_DIR" http://deb.debian.org/debian
 cp /usr/bin/qemu-aarch64-static "$BUILD_DIR/usr/bin/"
 
-# Mount virtual filesystems needed by systemd inside chroot
-mount -t proc proc "$BUILD_DIR/proc"
-mount -t sysfs sysfs "$BUILD_DIR/sys"
-mount --bind /dev "$BUILD_DIR/dev"
-
-# Ensure cleanup on exit
-cleanup() {
-    umount "$BUILD_DIR/dev" "$BUILD_DIR/sys" "$BUILD_DIR/proc" 2>/dev/null || true
-}
-trap cleanup EXIT
-
-# Run configuration inside chroot
 chroot "$BUILD_DIR" /bin/bash <<EOF
     set -e
     export DEBIAN_FRONTEND=noninteractive
 
-    # Finish bootstrap
+    # Finish the bootstrap process
     /debootstrap/debootstrap --second-stage
 
-    # Root password
+    # Set the root password non-interactively
     echo "root:$ROOT_PASSWORD" | chpasswd
 
-    # Hostname
+    # Set the hostname
     echo "rfnm" > /etc/hostname
 
-    # Desktop user
+    # Non-root user
     useradd -m -s /bin/bash rfnm
     echo "rfnm:rfnm" | chpasswd
     usermod -aG sudo rfnm
-    groupadd -f seat
-    usermod -aG video,render,input,seat,tty rfnm
+    usermod -aG input,tty rfnm
 
     apt-get update
 
@@ -62,7 +42,6 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
         wget \
         u-boot-tools \
         build-essential \
-        seatd \
         vulkan-tools
 
     # Enable networking
@@ -72,37 +51,17 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
 
     ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
-    # Weston runtime dependencies (Weston binary comes from rootfs overlay, built against Vivante EGL)
-    apt-get install -y \
-        libdrm2 \
-        libpixman-1-0 \
-        libxkbcommon0 \
-        libwayland-server0 \
-        libwayland-client0 \
-        libpam0g \
-        libinput10 \
-        libseat1 \
-        libva2 \
-        libva-drm2 \
-        xwayland
-        
-    # Enable seatd for non-root user support
-    systemctl enable seatd
-
     apt-get clean
-
 EOF
 
-echo "Weston build complete."
 
 # Apply each overlay component in dependency order:
 #   base     - core system config (networking, ssh, serial, rfnm scripts, gpio, firmware)
 #   vivante  - Vivante GPU userspace libs + udev rules + gputop + viv_samples
-#   weston   - Weston compositor binaries, libs, service & assets (built against Vivante EGL)
 #
-# Vivante & weston must be applied AFTER apt-get runs to overwrite any
+# Vivante must be applied AFTER apt-get runs to overwrite any
 # Mesa libs pulled in as dependencies.
-for overlay in base vivante weston; do
+for overlay in base vivante; do
     if [ -d "./rootfs-overlay/$overlay" ]; then
         echo "Installing $overlay overlay..."
         cp -rv "./rootfs-overlay/$overlay/"* "$BUILD_DIR/"
@@ -120,11 +79,5 @@ fi
 
 # Update dynamic linker cache to pick up overlay libraries
 chroot "$BUILD_DIR" ldconfig
-
-# Enable services from overlays
-if [ -f "$BUILD_DIR/etc/systemd/system/weston.service" ]; then
-    echo "Enabling Weston service..."
-    chroot "$BUILD_DIR" systemctl enable weston
-fi
 
 echo "Overlay installation complete."

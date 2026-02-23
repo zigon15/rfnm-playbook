@@ -17,7 +17,6 @@ fi
 # Ensure qemu is present inside rootfs
 cp /usr/bin/qemu-aarch64-static "$BUILD_DIR/usr/bin/"
 
-
 # Mount virtual filesystems needed by systemd inside chroot
 mount -t proc proc "$BUILD_DIR/proc"
 mount -t sysfs sysfs "$BUILD_DIR/sys"
@@ -47,6 +46,8 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
     useradd -m -s /bin/bash rfnm
     echo "rfnm:rfnm" | chpasswd
     usermod -aG sudo rfnm
+    groupadd -f seat
+    usermod -aG video,render,input,seat,tty rfnm
 
     apt-get update
 
@@ -60,7 +61,9 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
         sudo \
         wget \
         u-boot-tools \
-        build-essential
+        build-essential \
+        seatd \
+        vulkan-tools
 
     # Enable networking
     systemctl enable systemd-networkd
@@ -87,6 +90,12 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
     # KDE Desktop
     apt-get install -y task-kde-desktop
 
+    # Set SDDM as the display manager
+    systemctl enable sddm
+
+    # Enable seatd for non-root GPU access (required for Vivante EGL/Vulkan)
+    systemctl enable seatd
+
     # Update dynamic linker cache
     ldconfig
 
@@ -97,4 +106,33 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
 
 EOF
 
-echo "Rootfs build complete."
+echo "Debian build complete."
+
+# Apply each overlay component in dependency order:
+#   base     - core system config (networking, ssh, serial, rfnm scripts, gpio, firmware)
+#   vivante  - Vivante GPU userspace libs + udev rules + gputop + viv_samples
+#   weston   - Weston compositor binaries, libs, service & assets (built against Vivante EGL)
+#   desktop  - KDE/SDDM desktop environment config
+#
+# Vivante & weston must be applied AFTER apt-get runs to overwrite any
+# Mesa libs pulled in as dependencies.
+for overlay in base vivante desktop; do
+    if [ -d "./rootfs-overlay/$overlay" ]; then
+        echo "Installing $overlay overlay..."
+        cp -rv "./rootfs-overlay/$overlay/"* "$BUILD_DIR/"
+    fi
+done
+
+# Remove GLVND dispatcher shims that conflict with Vivante's direct libraries.
+# ldconfig picks the highest version number, so these shims (which lack actual
+# GL implementation) would override the real Vivante drivers without removal.
+if [ -d "./rootfs-overlay/vivante" ]; then
+    echo "Removing GLVND shims that conflict with Vivante..."
+    rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2.1.0"
+    rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libEGL.so.1.1.0"
+fi
+
+# Update dynamic linker cache to pick up overlay libraries
+chroot "$BUILD_DIR" ldconfig
+
+echo "Overlay installation complete."

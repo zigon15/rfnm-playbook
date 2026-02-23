@@ -34,7 +34,7 @@ cd /work/scripts/uboot
 # Build the Linux Kernel
 echo_step "Building the Linux Kernel"
 cd /work/scripts/kernel
-./build.sh
+./build_GalcoreGPU.sh
 
 # Build the LA9310 firmware
 echo_step "Building the LA9310 Firmware"
@@ -49,7 +49,6 @@ cd /work/scripts/la9310-driver
 # Build the Debian Root Filesystem
 echo_step "Building the Debian Root Filesystem"
 cd /work/scripts/debian
-./build.sh
+./build_GalcoreGPU.sh
 ./installKernelModules.sh
 ./installRfnm.sh
-./installOverlay.sh
