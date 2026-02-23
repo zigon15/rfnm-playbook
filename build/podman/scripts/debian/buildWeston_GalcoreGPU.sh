@@ -61,7 +61,8 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
         wget \
         u-boot-tools \
         build-essential \
-        seatd
+        seatd \
+        vulkan-tools
 
     # Enable networking
     systemctl enable systemd-networkd
