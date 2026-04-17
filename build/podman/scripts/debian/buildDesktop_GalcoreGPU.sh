@@ -123,15 +123,6 @@ for overlay in base vivante desktop; do
     fi
 done
 
-# Remove GLVND dispatcher shims that conflict with Vivante's direct libraries.
-# ldconfig picks the highest version number, so these shims (which lack actual
-# GL implementation) would override the real Vivante drivers without removal.
-if [ -d "./rootfs-overlay/vivante" ]; then
-    echo "Removing GLVND shims that conflict with Vivante..."
-    rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2.1.0"
-    rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libEGL.so.1.1.0"
-fi
-
 # Update dynamic linker cache to pick up overlay libraries
 chroot "$BUILD_DIR" ldconfig
 
