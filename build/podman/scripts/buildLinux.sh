@@ -12,7 +12,6 @@ echo_step() {
 echo_step "Getting the repositories"
 cd /work/scripts/git
 ./cloneRepos.sh
-./checkoutGoodCommits.sh
 
 ./getFirmware.sh
 
@@ -49,6 +48,7 @@ cd /work/scripts/la9310-driver
 # Build the Debian Root Filesystem
 echo_step "Building the Debian Root Filesystem"
 cd /work/scripts/debian
-./build_GalcoreGPU.sh
+./buildWeston_GalcoreGPU.sh
 ./installKernelModules.sh
 ./installRfnm.sh
+
