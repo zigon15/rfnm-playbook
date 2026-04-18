@@ -12,6 +12,7 @@ echo_step() {
 echo_step "Getting the repositories"
 cd /work/scripts/git
 ./cloneRepos.sh
+./checkoutGoodCommits.sh
 
 ./getFirmware.sh
 

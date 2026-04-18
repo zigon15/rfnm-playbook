@@ -109,6 +109,10 @@ for overlay in base vivante weston; do
     fi
 done
 
+# Remove Debian GLVND shims that conflict with Vivante's direct libraries
+rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2.1.0"
+rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libEGL.so.1.1.0"
+
 # Update dynamic linker cache to pick up overlay libraries
 chroot "$BUILD_DIR" ldconfig
 

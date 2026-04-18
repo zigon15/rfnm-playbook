@@ -11,10 +11,12 @@ Environment=XDG_RUNTIME_DIR=/run/user/1000
 Environment=XDG_SESSION_TYPE=wayland
 Environment=LIBSEAT_BACKEND=seatd
 Environment=SEATD_SOCK=/run/seatd.sock
-ExecStartPre=/bin/mkdir -p /run/user/1000
-ExecStartPre=/bin/chown rfnm:rfnm /run/user/1000
-ExecStartPre=/bin/chmod 700 /run/user/1000
+ExecStartPre=+/bin/mkdir -p /run/user/1000
+ExecStartPre=+/bin/chown rfnm:rfnm /run/user/1000
+ExecStartPre=+/bin/chmod 700 /run/user/1000
 ExecStart=/usr/bin/weston --backend=drm-backend.so
+StandardOutput=journal
+StandardError=journal
 Restart=on-failure
 RestartSec=5
 
