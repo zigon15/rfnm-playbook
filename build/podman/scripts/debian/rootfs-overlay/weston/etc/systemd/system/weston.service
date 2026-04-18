@@ -14,7 +14,7 @@ Environment=SEATD_SOCK=/run/seatd.sock
 ExecStartPre=+/bin/mkdir -p /run/user/1000
 ExecStartPre=+/bin/chown rfnm:rfnm /run/user/1000
 ExecStartPre=+/bin/chmod 700 /run/user/1000
-ExecStart=/usr/bin/weston --backend=drm-backend.so
+ExecStart=/usr/bin/weston --backend=drm-backend.so --idle-time=0
 StandardOutput=journal
 StandardError=journal
 Restart=on-failure
