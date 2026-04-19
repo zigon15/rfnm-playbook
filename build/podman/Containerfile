@@ -54,7 +54,10 @@ RUN apt-get update && apt-get install -y \
 # Install dependancies for creating Debian root filesystem
 RUN apt-get update && apt-get install -y \
     iputils-ping \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --break-system-packages questionary
 
 # Download and install qemu-aarch64-static for cross-architecture builds
 # RUN wget https://github.com/multiarch/qemu-user-static/releases/latest/download/qemu-aarch64-static && \

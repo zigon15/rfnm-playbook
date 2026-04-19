@@ -56,11 +56,11 @@ EOF
 
 
 # Apply each overlay component in dependency order:
-#   base     - core system config (networking, ssh, serial, rfnm scripts, gpio, firmware)
-#   vivante  - Vivante GPU userspace libs + udev rules + gputop + viv_samples
+#   base    - core system config (networking, ssh, serial, rfnm scripts, gpio, firmware)
+#   vivante - Vivante GPU support files (udev rule, libjpeg)
 #
-# Vivante must be applied AFTER apt-get runs to overwrite any
-# Mesa libs pulled in as dependencies.
+# Vivante GPU driver is installed via installGalcoreDriver.sh (downloaded from NXP)
+# and must run AFTER apt-get to overwrite any Mesa libs pulled in as dependencies.
 for overlay in base vivante; do
     if [ -d "./rootfs-overlay/$overlay" ]; then
         echo "Installing $overlay overlay..."
@@ -68,14 +68,15 @@ for overlay in base vivante; do
     fi
 done
 
-# Remove GLVND dispatcher shims that conflict with Vivante's direct libraries.
-# ldconfig picks the highest version number, so these shims (which lack actual
-# GL implementation) would override the real Vivante drivers without removal.
-if [ -d "./rootfs-overlay/vivante" ]; then
-    echo "Removing GLVND shims that conflict with Vivante..."
-    rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2.1.0"
-    rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libEGL.so.1.1.0"
-fi
+# Install Vivante GPU userspace driver
+./installGalcoreDriver.sh
+
+# Fix libGLESv2.so.2 symlink to point to Vivante real impl, not GLVND stub
+ln -sf libGLESv2.so.2.0.0 "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2"
+
+# Remove Debian GLVND shims that conflict with Vivante's direct libraries
+rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2.1.0"
+rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libEGL.so.1.1.0"
 
 # Update dynamic linker cache to pick up overlay libraries
 chroot "$BUILD_DIR" ldconfig

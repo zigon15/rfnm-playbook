@@ -96,18 +96,24 @@ EOF
 echo "Weston build complete."
 
 # Apply each overlay component in dependency order:
-#   base     - core system config (networking, ssh, serial, rfnm scripts, gpio, firmware)
-#   vivante  - Vivante GPU userspace libs + udev rules + gputop + viv_samples
-#   weston   - Weston compositor binaries, libs, service & assets (built against Vivante EGL)
+#   base    - core system config (networking, ssh, serial, rfnm scripts, gpio, firmware)
+#   vivante - Vivante GPU support files (udev rule, libjpeg)
+#   weston  - Weston compositor binaries, libs, service & assets (built against Vivante EGL)
 #
-# Vivante & weston must be applied AFTER apt-get runs to overwrite any
-# Mesa libs pulled in as dependencies.
+# Vivante GPU driver is installed via installGalcoreDriver.sh (downloaded from NXP)
+# and must run AFTER apt-get to overwrite any Mesa libs pulled in as dependencies.
 for overlay in base vivante weston; do
     if [ -d "./rootfs-overlay/$overlay" ]; then
         echo "Installing $overlay overlay..."
         cp -rv "./rootfs-overlay/$overlay/"* "$BUILD_DIR/"
     fi
 done
+
+# Install Vivante GPU userspace driver
+./installGalcoreDriver.sh
+
+# Fix libGLESv2.so.2 symlink to point to Vivante real impl, not GLVND stub
+ln -sf libGLESv2.so.2.0.0 "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2"
 
 # Remove Debian GLVND shims that conflict with Vivante's direct libraries
 rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2.1.0"
