@@ -49,12 +49,6 @@ if lsblk -no MOUNTPOINTS "$DEVICE" 2>/dev/null | grep -qE '^(/|/boot|/boot/efi)$
     exit 1
 fi
 
-if [[ "$DEVICE" == *"/dev/sda"* ]] || [[ "$DEVICE" == *"/dev/nvme0n1"* ]]; then
-    echo "WARNING: Target is $DEVICE. This might be a SYSTEM DRIVE."
-    read -p "Are you ABSOLUTELY sure you want to wipe and flash $DEVICE? Type 'yes' to continue: " CONFIRM
-    if [ "$CONFIRM" != "yes" ]; then exit 1; fi
-fi
-
 # Display information
 echo "Image file: $IMAGE_FILE"
 IMAGE_SIZE=$(du -h "$IMAGE_FILE" | awk '{print $1}')

@@ -1,9 +1,10 @@
-From d833e6824c96ee324220269b7d9d46224a5e060a Mon Sep 17 00:00:00 2001
+From 7e0ad266af9199b64ffeccfd0233b433e59b4e2c Mon Sep 17 00:00:00 2001
 From: Simon <simonzigon15@gmail.com>
-Date: Fri, 23 Jan 2026 17:51:13 +1030
+Date: Mon, 20 Apr 2026 19:47:26 +0930
 Subject: [PATCH] Build Fixes
 
 ---
+ arch/arm/dts/imx8mp-rfnm-u-boot.dtsi        | 3 +++
  arch/arm/include/asm/arch-imx8m/sys_proto.h | 2 +-
  arch/arm/mach-imx/imx8m/Kconfig             | 1 +
  board/freescale/imx8mp_rfnm/imx8mp_rfnm.c   | 2 +-
@@ -12,10 +13,29 @@ Subject: [PATCH] Build Fixes
  scripts/dtc/pylibfdt/libfdt.i_shipped       | 6 +++---
  scripts/dtc/pylibfdt/setup.py               | 2 +-
  tools/binman/etype/section.py               | 2 +-
- 8 files changed, 10 insertions(+), 8 deletions(-)
+ 9 files changed, 13 insertions(+), 8 deletions(-)
 
+diff --git a/arch/arm/dts/imx8mp-rfnm-u-boot.dtsi b/arch/arm/dts/imx8mp-rfnm-u-boot.dtsi
+index ff03b45d..413c1004 100644
+--- a/arch/arm/dts/imx8mp-rfnm-u-boot.dtsi
++++ b/arch/arm/dts/imx8mp-rfnm-u-boot.dtsi
+@@ -234,6 +234,7 @@
+ 
+ &usb3_1 {
+ 	/delete-property/ power-domains;
++	status = "okay";
+ };
+ 
+ &usb_dwc3_0 {
+@@ -248,4 +249,6 @@
+ 	assigned-clocks = <&clk IMX8MP_CLK_HSIO_AXI>;
+ 	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>;
+ 	assigned-clock-rates = <400000000>;
++	dr_mode = "host";
++	status = "okay";
+ };
 diff --git a/arch/arm/include/asm/arch-imx8m/sys_proto.h b/arch/arm/include/asm/arch-imx8m/sys_proto.h
-index 3e54f9b676..ed43cc94cb 100644
+index 3e54f9b6..ed43cc94 100644
 --- a/arch/arm/include/asm/arch-imx8m/sys_proto.h
 +++ b/arch/arm/include/asm/arch-imx8m/sys_proto.h
 @@ -4,7 +4,7 @@
@@ -28,7 +48,7 @@ index 3e54f9b676..ed43cc94cb 100644
  #include <asm/mach-imx/sys_proto.h>
  
 diff --git a/arch/arm/mach-imx/imx8m/Kconfig b/arch/arm/mach-imx/imx8m/Kconfig
-index 266fb4aaf2..34d83997a3 100644
+index 266fb4aa..34d83997 100644
 --- a/arch/arm/mach-imx/imx8m/Kconfig
 +++ b/arch/arm/mach-imx/imx8m/Kconfig
 @@ -243,6 +243,7 @@ config TARGET_IMX8MP_EVK
@@ -40,7 +60,7 @@ index 266fb4aaf2..34d83997a3 100644
  	select SUPPORT_SPL
  	select IMX8M_LPDDR4
 diff --git a/board/freescale/imx8mp_rfnm/imx8mp_rfnm.c b/board/freescale/imx8mp_rfnm/imx8mp_rfnm.c
-index fd0fcd8c45..377ebdde94 100644
+index fd0fcd8c..377ebdde 100644
 --- a/board/freescale/imx8mp_rfnm/imx8mp_rfnm.c
 +++ b/board/freescale/imx8mp_rfnm/imx8mp_rfnm.c
 @@ -29,7 +29,7 @@
@@ -53,7 +73,7 @@ index fd0fcd8c45..377ebdde94 100644
  #include "rfnm_wsled.h"
  
 diff --git a/configs/imx8mp_rfnm_defconfig b/configs/imx8mp_rfnm_defconfig
-index 8edf12f067..735b3ff415 100644
+index 8edf12f0..735b3ff4 100644
 --- a/configs/imx8mp_rfnm_defconfig
 +++ b/configs/imx8mp_rfnm_defconfig
 @@ -30,6 +30,7 @@ CONFIG_BOOTCOMMAND="run rfnm_bootcmd;"
@@ -65,7 +85,7 @@ index 8edf12f067..735b3ff415 100644
  CONFIG_OF_BOARD_SETUP=y
  CONFIG_OF_SYSTEM_SETUP=y
 diff --git a/scripts/dtc/pylibfdt/Makefile b/scripts/dtc/pylibfdt/Makefile
-index 493995e303..a7579f0c5f 100644
+index 493995e3..a7579f0c 100644
 --- a/scripts/dtc/pylibfdt/Makefile
 +++ b/scripts/dtc/pylibfdt/Makefile
 @@ -17,7 +17,7 @@ quiet_cmd_pymod = PYMOD   $@
@@ -78,7 +98,7 @@ index 493995e303..a7579f0c5f 100644
  		SOURCES="$(PYLIBFDT_srcs)" \
  		SWIG_OPTS="-I$(LIBFDT_srcdir) -I$(LIBFDT_srcdir)/.." \
 diff --git a/scripts/dtc/pylibfdt/libfdt.i_shipped b/scripts/dtc/pylibfdt/libfdt.i_shipped
-index 27c29ea260..3bbbfb3c9f 100644
+index 27c29ea2..3bbbfb3c 100644
 --- a/scripts/dtc/pylibfdt/libfdt.i_shipped
 +++ b/scripts/dtc/pylibfdt/libfdt.i_shipped
 @@ -1033,7 +1033,7 @@ typedef uint32_t fdt32_t;
@@ -109,7 +129,7 @@ index 27c29ea260..3bbbfb3c9f 100644
  }
  
 diff --git a/scripts/dtc/pylibfdt/setup.py b/scripts/dtc/pylibfdt/setup.py
-index 992cdec30f..0d01f772ea 100755
+index 992cdec3..0d01f772 100755
 --- a/scripts/dtc/pylibfdt/setup.py
 +++ b/scripts/dtc/pylibfdt/setup.py
 @@ -24,7 +24,7 @@ import re
@@ -122,7 +142,7 @@ index 992cdec30f..0d01f772ea 100755
  
  def ParseMakefile(fname):
 diff --git a/tools/binman/etype/section.py b/tools/binman/etype/section.py
-index 25159074ba..cf2b4e6cb5 100644
+index 25159074..cf2b4e6c 100644
 --- a/tools/binman/etype/section.py
 +++ b/tools/binman/etype/section.py
 @@ -41,7 +41,7 @@ class Entry_section(Entry):
