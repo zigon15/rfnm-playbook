@@ -3,10 +3,24 @@
 # into the rootfs at $BUILD_DIR.
 #
 # Usage: BUILD_DIR=/path/to/rootfs ./installGalcoreDriver.sh
+# https://layers.openembedded.org/layerindex/recipe/402093/
 
 set -e
 
 BUILD_DIR='/work/build/debian'
+DEBUG_LOG_PATH='/home/simon/dev/rfnm/rfnm-playbook/.cursor/debug-cbba97.log'
+DEBUG_RUN_ID="${DEBUG_RUN_ID:-pre-fix}"
+
+debug_log() {
+    hypothesis_id="$1"
+    location="$2"
+    message="$3"
+    data="$4"
+    mkdir -p "$(dirname "$DEBUG_LOG_PATH")"
+    ts="$(date +%s%3N 2>/dev/null || echo 0)"
+    printf '{"sessionId":"cbba97","runId":"%s","hypothesisId":"%s","location":"%s","message":"%s","data":{"details":"%s"},"timestamp":%s}\n' \
+        "$DEBUG_RUN_ID" "$hypothesis_id" "$location" "$message" "$data" "$ts" >> "$DEBUG_LOG_PATH"
+}
 
 GPU_VIV_VERSION="6.4.11.p2.12"
 GPU_VIV_BIN="imx-gpu-viv-${GPU_VIV_VERSION}-aarch64-4402ac2.bin"
@@ -51,8 +65,27 @@ cp -v "$GPU_CORE/usr/lib/wayland"/lib*.so* "$LIBDIR/"
 # SoC-specific NN libs for iMX8MP
 cp -v "$GPU_CORE/usr/lib/mx8mp"/lib*.so* "$LIBDIR/"
 
+# region agent log H1
+debug_log "H1_lib_layout" "installGalcoreDriver.sh:55" "Installed Vivante userspace libraries" "libdir=${LIBDIR};gpu_core=${GPU_CORE}"
+# endregion
+
 # Headers
 cp -rv "$GPU_CORE/usr/include" "$BUILD_DIR/usr/"
+
+# pkg-config files — patch libdir to the multiarch path so meson finds them
+PKGCONFIG_DIR="$BUILD_DIR/usr/lib/aarch64-linux-gnu/pkgconfig"
+mkdir -p "$PKGCONFIG_DIR"
+for pc in "$GPU_CORE/usr/lib/pkgconfig/"*.pc; do
+    sed 's|^libdir=/usr/lib$|libdir=/usr/lib/aarch64-linux-gnu|' "$pc" > "$PKGCONFIG_DIR/$(basename "$pc")"
+done
+
+# region agent log H2
+if [ -f "$PKGCONFIG_DIR/egl.pc" ] && [ -f "$PKGCONFIG_DIR/glesv2.pc" ] && [ -f "$PKGCONFIG_DIR/gbm.pc" ]; then
+    debug_log "H2_pkgconfig" "installGalcoreDriver.sh:69" "Vivante pkg-config files installed" "pkgconfig_dir=${PKGCONFIG_DIR}"
+else
+    debug_log "H2_pkgconfig" "installGalcoreDriver.sh:71" "Vivante pkg-config files missing" "pkgconfig_dir=${PKGCONFIG_DIR}"
+fi
+# endregion
 
 # etc (Vulkan ICD, OpenCL config)
 cp -rv "$GPU_CORE/etc" "$BUILD_DIR/"
@@ -68,5 +101,13 @@ GPU_DEMOS="${VIV_SRC}/gpu-demos"
 # gmem-info tool
 GPU_TOOLS="${VIV_SRC}/gpu-tools"
 [ -d "$GPU_TOOLS/gmem-info/usr" ] && cp -rv "$GPU_TOOLS/gmem-info/usr" "$BUILD_DIR/"
+
+# region agent log H3
+if [ -L "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2" ]; then
+    debug_log "H3_gles_symlink" "installGalcoreDriver.sh:87" "libGLESv2.so.2 symlink present" "rootfs=${BUILD_DIR}"
+else
+    debug_log "H3_gles_symlink" "installGalcoreDriver.sh:89" "libGLESv2.so.2 symlink absent or regular file" "rootfs=${BUILD_DIR}"
+fi
+# endregion
 
 echo "Vivante GPU driver ${GPU_VIV_VERSION} installed."

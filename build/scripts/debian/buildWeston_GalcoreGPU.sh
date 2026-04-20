@@ -72,7 +72,7 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
 
     ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
-    # Weston runtime dependencies (Weston binary comes from rootfs overlay, built against Vivante EGL)
+    # Weston and its runtime dependencies
     apt-get install -y \
         libdrm2 \
         libpixman-1-0 \
@@ -93,39 +93,25 @@ chroot "$BUILD_DIR" /bin/bash <<EOF
 
 EOF
 
-echo "Weston build complete."
-
-# Apply each overlay component in dependency order:
-#   base    - core system config (networking, ssh, serial, rfnm scripts, gpio, firmware)
-#   vivante - Vivante GPU support files (udev rule, libjpeg)
-#   weston  - Weston compositor binaries, libs, service & assets (built against Vivante EGL)
-#
-# Vivante GPU driver is installed via installGalcoreDriver.sh (downloaded from NXP)
-# and must run AFTER apt-get to overwrite any Mesa libs pulled in as dependencies.
-for overlay in base vivante weston; do
+# Apply only baseline overlays. Weston binaries and Vivante userspace
+# are installed by dedicated scripts below.
+for overlay in base vivante; do
     if [ -d "./rootfs-overlay/$overlay" ]; then
         echo "Installing $overlay overlay..."
         cp -rv "./rootfs-overlay/$overlay/"* "$BUILD_DIR/"
     fi
 done
 
-# Install Vivante GPU userspace driver
-./installGalcoreDriver.sh
+# Install Vivante GPU userspace driver (downloaded package).
+./sub/installGalcoreDriver.sh
+
+# Build and install weston-imx from source against Vivante stack.
+./sub/installWeston.sh
 
 # Fix libGLESv2.so.2 symlink to point to Vivante real impl, not GLVND stub
 ln -sf libGLESv2.so.2.0.0 "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2"
 
-# Remove Debian GLVND shims that conflict with Vivante's direct libraries
-rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2.1.0"
-rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libEGL.so.1.1.0"
-
-# Update dynamic linker cache to pick up overlay libraries
+# Update dynamic linker cache to pick up all installed libraries
 chroot "$BUILD_DIR" ldconfig
-
-# Enable services from overlays
-if [ -f "$BUILD_DIR/etc/systemd/system/weston.service" ]; then
-    echo "Enabling Weston service..."
-    chroot "$BUILD_DIR" systemctl enable weston
-fi
 
 echo "Overlay installation complete."

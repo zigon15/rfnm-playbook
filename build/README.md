@@ -114,7 +114,9 @@ build/
 - Check internet connection: `ping github.com`
 - May be rate-limited - wait 1 hour or use GitHub token
 
-**"No space left on device":**
+**Serial console not appearing:**
+- Console is on the **UART2 TX and RX pins**, 115200 baud 8N1
+- Check your USB-serial adapter is connected to the correct pins
 - Check available space: `df -h`
 - Ensure 20GB free before building
 - Clean old builds if needed

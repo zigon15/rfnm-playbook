@@ -59,7 +59,7 @@ EOF
 #   base    - core system config (networking, ssh, serial, rfnm scripts, gpio, firmware)
 #   vivante - Vivante GPU support files (udev rule, libjpeg)
 #
-# Vivante GPU driver is installed via installGalcoreDriver.sh (downloaded from NXP)
+# Vivante GPU driver is installed via sub/installGalcoreDriver.sh (downloaded from NXP)
 # and must run AFTER apt-get to overwrite any Mesa libs pulled in as dependencies.
 for overlay in base vivante; do
     if [ -d "./rootfs-overlay/$overlay" ]; then
@@ -69,7 +69,7 @@ for overlay in base vivante; do
 done
 
 # Install Vivante GPU userspace driver
-./installGalcoreDriver.sh
+./sub/installGalcoreDriver.sh
 
 # Fix libGLESv2.so.2 symlink to point to Vivante real impl, not GLVND stub
 ln -sf libGLESv2.so.2.0.0 "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2"
