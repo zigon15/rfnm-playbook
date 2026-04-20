@@ -3,11 +3,7 @@
 Build a bootable Linux system for RFNM devices using Podman containerization.
 
 ## Prerequisites
-
 - **Linux** with Podman 4.0+ installed
-- **~20GB free disk space** (3GB container, 15GB artifacts)
-- **2 hours** for first build (30-45 minutes for incremental builds)
-- **Root access** via sudo for SD card operations
 - **SD card** (4GB minimum, 8GB+ recommended)
 
 ## Quick Start
@@ -21,25 +17,22 @@ It is best to disable automount to stop the host os screwing up the flash sd scr
 ### Build and Flash Workflow
 
 ```bash
-cd build/podman
+cd build
 
-# 1. Build container (one-time setup, ~10 minutes)
-./buildContainer.sh
+# Build container (one-time)
+sudo ./buildContainer.sh
 
-# 2. Copy to root's Podman (required for SD card access)
-./copyContainerRoot.sh
-
-# 3. Run container with SD card device
+# Run container with SD card device
 # IMPORTANT: Verify device name first with: lsblk
 sudo ./runContainer.sh /dev/sdX   # Replace sdX with your SD card
 
 # Inside container:
 
-# 4. Build everything (ATF, U-Boot, Kernel, Debian rootfs - ~1.5-2 hours)
-./buildLinux.sh
+# Build everything (ATF, U-Boot, Kernel, Debian rootfs)
+python3 /work/scripts/build.py
 
-# 5. Flash to SD card (~10-20 minutes)
-./flashSD.sh
+# Flash to SD card
+/work/scripts/flashSD.sh
 
 # Exit container
 exit
@@ -48,53 +41,50 @@ exit
 ### Alternative: Build Only (No SD Card)
 
 ```bash
-cd build/podman
-./buildContainer.sh
-./copyContainerRoot.sh
-sudo ./runContainer.sh  # No device parameter
-./buildLinux.sh
+cd build
+sudo ./buildContainer.sh
+sudo ./runContainer.sh
+python3 /work/scripts/build.py
 exit
 ```
 
 ### Create Distributable Image
 
 ```bash
-# Inside container (after buildLinux.sh):
+# Inside container (after buildLinux.sh), Creates 4GB image file,
 ./createImg.sh /work/build/rfnm-image.img 4
-# Creates 4GB image file, then flash to multiple cards:
-./flashImgToSD.sh /work/build/rfnm-image.img /dev/sdX
+
+# Flash to multiple cards:
+./flashSD_Img.sh /work/build/rfnm-image.img /dev/sdX
 ```
 
 ## Scripts Overview
 
 ### Host Scripts
 
-- **`buildContainer.sh`** - Builds Ubuntu 25.10 container with ARM64 cross-compilation tools (~10 min, one-time)
-- **`copyContainerRoot.sh`** - Copies container to root's Podman namespace for privileged operations (~30 sec)
+- **`buildContainer.sh`** - Builds Ubuntu 25.10 container with ARM64 cross-compilation tools
+- **`copyContainerRoot.sh`** - Copies container to root's Podman namespace for privileged operations
 - **`runContainer.sh [device]`** - Launches container with optional SD card device mapping
 
 ### Container Scripts
 
-- **`buildLinux.sh`** - Clones repos, builds ATF/U-Boot/Kernel, creates Debian rootfs (~1.5-2 hours)
+- **`build.py`** - Interactive build orchestrator: clones repos, builds ATF/U-Boot/Kernel, creates Debian rootfs
   - Clones 6 repositories (kernel, u-boot, ATF, drivers, librfnm)
   - Checks out known-good commits
   - Downloads NXP firmware blobs
-  - Builds everything needed for bootable system
+  - Builds everything needed for a bootable system
 
-- **`flashSD.sh`** - Partitions SD card and writes bootloader, kernel, and rootfs (~10-20 minutes)
-  - Validates build artifacts and target device
-  - Safety checks to prevent data loss
-  - Creates partition table (8MB offset, FAT32 boot, ext4 rootfs)
-  - Flashes U-Boot at 32KB offset
-  - Copies kernel and Debian rootfs
+- **`flashSD.sh`** - Full SD card flash: U-Boot, kernel, DTB, and rootfs all on SD
 
-- **`checkSD.sh`** - Verifies SD card contents and filesystem integrity
-  - Edit device path in script before use (currently hardcoded to /dev/sdb)
+- **`flashSD_UBootUsb.sh [device]`** - Flash U-Boot + boot script to SD only; boot script loads kernel and rootfs from USB
 
-- **`createImg.sh [output] [size]`** - Creates distributable disk image file (default: 4GB)
-  - Creates sparse image, useful for distributing and flashing multiple cards
+- **`flashUSB_Linux.sh [device]`** - Write kernel/DTB (FAT32 partition 1) and rootfs (ext4 partition 2) to a USB drive; used alongside `flashSD_UBootUsb.sh`
 
-- **`flashImgToSD.sh [image] [device]`** - Flashes pre-built image to SD card (5-10 minutes, much faster than full build)
+- **`flashSD_Img.sh [image] [device]`** - Flash a pre-built image file to SD card (much faster than a full rebuild)
+
+- **`createImg.sh [output] [size]`** - Create a flashable disk image file from current build artifacts (default: 4GB)
+
+- **`checkSD.sh`** - Verify SD card contents and filesystem integrity
 
 ## Build Artifacts
 
@@ -120,7 +110,7 @@ build/
 - Verify Podman is running: `systemctl --user start podman.socket`
 - Ensure internet connection for downloading base image
 
-**buildLinux.sh fails during git clone:**
+**build.py fails during git clone:**
 - Check internet connection: `ping github.com`
 - May be rate-limited - wait 1 hour or use GitHub token
 
