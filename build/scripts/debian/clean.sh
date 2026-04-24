@@ -1,5 +1,5 @@
 #!/bin/sh
-
-#---- Configurable Variables ----#
-BUILD_DIR='/work/build/debian'
-rm -rf "$BUILD_DIR"
+rm -rf \
+    /work/build/debian \
+    /work/build/debian-build \
+    /work/build/debian-stages

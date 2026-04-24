@@ -1,28 +1,27 @@
 #!/bin/sh
-# Orchestrator: Weston + Vivante GL (download + compile)
+# Orchestrator: Weston + Vivante GL (prebuilt overlay)
+#
+# Uses prebuilt artifacts from rootfs-overlay/ — no download or compilation.
 #
 # Stages:
 #   1 — debootstrap      (base Debian rootfs in debian-build/)
 #   2 — configure        (packages, users, networking)
 #   3 — overlays         (rootfs-overlay/base + rootfs-overlay/vivante)
-#   4 — galcore          (download Vivante driver → debian-stages/galcore/)
-#   5 — weston           (compile weston-imx   → debian-stages/weston/)
-#   6 — merge            (wipe debian/, copy chroot + galcore + weston, ldconfig)
-#   7 — kernel-modules   (install .ko files + NXP firmware into debian/)
-#   8 — rfnm             (LA9310 driver modules + FreeRTOS firmware into debian/)
+#   4 — merge-overlay    (wipe debian/, copy chroot + vivanteDrivers + weston, ldconfig)
+#   5 — kernel-modules   (install .ko files + NXP firmware into debian/)
+#   6 — rfnm             (LA9310 driver modules + FreeRTOS firmware into debian/)
 #
 # Run all stages (default):
-#   ./buildWeston_GalcoreGPU.sh
+#   ./buildWeston_GalcoreGPU_overlay.sh
 #
-# Run a specific subset of stages:
-#   STAGES="4 6"   ./buildWeston_GalcoreGPU.sh   # galcore + merge
-#   STAGES="7 8"   ./buildWeston_GalcoreGPU.sh   # re-install modules only
-#   STAGES="6"     ./buildWeston_GalcoreGPU.sh   # just merge
+# Run a specific subset of stages (merge always added automatically via build.py):
+#   STAGES="5 6"   ./buildWeston_GalcoreGPU_overlay.sh   # re-install modules only
+#   STAGES="4"     ./buildWeston_GalcoreGPU_overlay.sh   # just merge
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/stages/common.sh"
-STAGES="${STAGES:-1 2 3 4 5 6 7 8}"
+STAGES="${STAGES:-1 2 3 4 5 6}"
 
 should_run() {
     num=$1
@@ -48,28 +47,29 @@ run_stage() {
 run_stage 1 01-debootstrap.sh
 run_stage 2 02-configure.sh
 run_stage 3 03-overlays.sh
-run_stage 4 04-galcore.sh
-run_stage 5 05-weston.sh
 
-# ── Stage 6: merge ────────────────────────────────────────────────────────────
-# Assemble the final rootfs from staged directories, fix the libGLESv2 symlink,
-# and run ldconfig.
-if should_run 6; then
+# ── Stage 4: merge-overlay ────────────────────────────────────────────────────
+# Copy prebuilt vivanteDrivers and weston overlays directly into the final
+# rootfs alongside the base chroot.
+if should_run 4; then
     echo ""
     echo "════════════════════════════════════════"
-    echo "  Stage 6 — merge"
+    echo "  Stage 4 — merge-overlay"
     echo "════════════════════════════════════════"
+
+    VIV_OVERLAY="$SCRIPT_DIR/rootfs-overlay/vivanteDrivers"
+    WESTON_OVERLAY="$SCRIPT_DIR/rootfs-overlay/weston"
 
     if [ ! -d "$CHROOT_DIR" ]; then
         echo "Error: $CHROOT_DIR not found — run stages 1-3 first."
         exit 1
     fi
-    if [ ! -d "$GALCORE_STAGE" ]; then
-        echo "Error: $GALCORE_STAGE not found — run stage 4 (galcore) first."
+    if [ ! -d "$VIV_OVERLAY" ]; then
+        echo "Error: $VIV_OVERLAY not found — is the repo fully cloned?"
         exit 1
     fi
-    if [ ! -d "$WESTON_STAGE" ]; then
-        echo "Error: $WESTON_STAGE not found — run stage 5 (weston) first."
+    if [ ! -d "$WESTON_OVERLAY" ]; then
+        echo "Error: $WESTON_OVERLAY not found — is the repo fully cloned?"
         exit 1
     fi
 
@@ -80,11 +80,11 @@ if should_run 6; then
     echo "Merging base chroot ($CHROOT_DIR)..."
     cp -a "$CHROOT_DIR/." "$BUILD_DIR/"
 
-    echo "Merging Vivante driver stage ($GALCORE_STAGE)..."
-    cp -a "$GALCORE_STAGE/." "$BUILD_DIR/"
+    echo "Merging vivanteDrivers overlay..."
+    cp -a "$VIV_OVERLAY/." "$BUILD_DIR/"
 
-    echo "Merging weston stage ($WESTON_STAGE)..."
-    cp -a "$WESTON_STAGE/." "$BUILD_DIR/"
+    echo "Merging weston overlay..."
+    cp -a "$WESTON_OVERLAY/." "$BUILD_DIR/"
 
     ln -sf libGLESv2.so.2.0.0 \
         "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2"
@@ -94,11 +94,11 @@ if should_run 6; then
     chroot "$BUILD_DIR" ldconfig
     chroot "$BUILD_DIR" systemctl enable weston
 
-    echo "Merge complete."
+    echo "Overlay merge complete."
 fi
 
-run_stage 7 07-kernel-modules.sh
-run_stage 8 08-rfnm.sh
+run_stage 5 07-kernel-modules.sh
+run_stage 6 08-rfnm.sh
 
 echo ""
-echo "✓  Weston rootfs build complete."
+echo "✓  Weston overlay rootfs build complete."
