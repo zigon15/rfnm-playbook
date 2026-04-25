@@ -1,208 +1,54 @@
-# Building Bootable SD Card for RFNM (Podman Method)
+# RFNM Build (use `build.py`)
 
-Build a bootable Linux system for RFNM devices using Podman containerization.
-
-## Prerequisites
-- **Linux** with Podman 4.0+ installed
-- **SD card** (4GB minimum, 8GB+ recommended)
+Use the container scripts to enter the build environment, then use `build.py` for nearly everything (build, partial rebuild, and flashing).
 
 ## Quick Start
 
-It is best to disable automount to stop the host os screwing up the flash sd script!!
-```
-  gsettings set org.gnome.desktop.media-handling automount false                                                                
-  gsettings set org.gnome.desktop.media-handling automount-open false 
-```
+Optional but recommended on desktop Linux to avoid automount races while flashing:
 
-### Build and Flash Workflow
+```bash
+gsettings set org.gnome.desktop.media-handling automount false
+gsettings set org.gnome.desktop.media-handling automount-open false
+```
 
 ```bash
 cd build
-
-# Build container (one-time)
-sudo ./buildContainer.sh
-
-# Run container with SD card device
-# IMPORTANT: Verify device name first with: lsblk
-sudo ./runContainer.sh /dev/sdX   # Replace sdX with your SD card
-
-# Inside container:
-
-# Build everything (ATF, U-Boot, Kernel, Debian rootfs)
-python3 /work/scripts/build.py
-
-# Flash to SD card
-/work/scripts/flashSD.sh
-
-# Exit container
-exit
-```
-
-### Alternative: Build Only (No SD Card)
-
-```bash
-cd build
-sudo ./buildContainer.sh
+sudo ./buildContainer.sh      # one-time or after Containerfile changes
 sudo ./runContainer.sh
-python3 /work/scripts/build.py
-exit
+
+# inside the container:
+./build.py
 ```
 
-### Create Distributable Image
+`build.py` provides:
+- full build or partial rebuild
+- rootfs variant selection (`weston`, `desktop`, `base`)
+- staged rootfs rebuild for Weston
+- optional flashing (SD, or SD+USB split)
 
-```bash
-# Inside container (after buildLinux.sh), Creates 4GB image file,
-./createImg.sh /work/build/rfnm-image.img 4
+## Recommended Workflow
 
-# Flash to multiple cards:
-./flashSD_Img.sh /work/build/rfnm-image.img /dev/sdX
-```
+- For normal development: run `./build.py` and choose **Partial** for only what changed.
+- For clean reproducible builds: run `./build.py` and choose **Full build**.
+- For flashing pre-built artifacts only: run `./build.py` and choose **Flash**.
 
-## Scripts Overview
+## Useful Scripts (when not using `build.py`)
 
-### Host Scripts
+- `./flashSD.sh` - flash full system to SD
+- `./flashSD_UBootUsb.sh` + `./flashUSB_Linux.sh` - SD bootloader + USB kernel/rootfs
+- `./createImg.sh /work/build/rfnm-image.img 4` - create image from current artifacts
+- `./flashSD_Img.sh /work/build/rfnm-image.img /dev/sdX` - write image to SD
 
-- **`buildContainer.sh`** - Builds Ubuntu 25.10 container with ARM64 cross-compilation tools
-- **`copyContainerRoot.sh`** - Copies container to root's Podman namespace for privileged operations
-- **`runContainer.sh [device]`** - Launches container with optional SD card device mapping
+## Main Artifacts
 
-### Container Scripts
+After a successful build, outputs are under `/work/build/`, including:
+- `imx8mp-uboot/flash.bin`
+- `imx8mp-kernel/arch/arm64/boot/Image`
+- `imx8mp-kernel/arch/arm64/boot/dts/freescale/imx8mp-rfnm.dtb`
+- `debian/` (rootfs)
 
-- **`build.py`** - Interactive build orchestrator: clones repos, builds ATF/U-Boot/Kernel, creates Debian rootfs
-  - Clones 6 repositories (kernel, u-boot, ATF, drivers, librfnm)
-  - Checks out known-good commits
-  - Downloads NXP firmware blobs
-  - Builds everything needed for a bootable system
+## References
 
-- **`flashSD.sh`** - Full SD card flash: U-Boot, kernel, DTB, and rootfs all on SD
-
-- **`flashSD_UBootUsb.sh [device]`** - Flash U-Boot + boot script to SD only; boot script loads kernel and rootfs from USB
-
-- **`flashUSB_Linux.sh [device]`** - Write kernel/DTB (FAT32 partition 1) and rootfs (ext4 partition 2) to a USB drive; used alongside `flashSD_UBootUsb.sh`
-
-- **`flashSD_Img.sh [image] [device]`** - Flash a pre-built image file to SD card (much faster than a full rebuild)
-
-- **`createImg.sh [output] [size]`** - Create a flashable disk image file from current build artifacts (default: 4GB)
-
-- **`checkSD.sh`** - Verify SD card contents and filesystem integrity
-
-## Build Artifacts
-
-After `buildLinux.sh` completes, artifacts are in `./build/`:
-
-```
-build/
-├── imx8mp-uboot/flash.bin       # U-Boot bootloader (~1.5MB)
-├── imx8mp-kernel/
-│   ├── arch/arm64/boot/Image    # Kernel binary (~30MB)
-│   └── dts/freescale/imx8mp-rfnm.dtb
-├── imx-atf/build/imx8mp/release/bl31.bin
-├── debian/                       # Complete Debian 12 ARM64 rootfs (~1-2GB)
-├── firmware/                     # NXP firmware blobs
-├── la9310-driver/
-├── la9310-freertos/
-└── librfnm/
-```
-
-## Troubleshooting
-
-**Container won't build:**
-- Verify Podman is running: `systemctl --user start podman.socket`
-- Ensure internet connection for downloading base image
-
-**build.py fails during git clone:**
-- Check internet connection: `ping github.com`
-- May be rate-limited - wait 1 hour or use GitHub token
-
-**Serial console not appearing:**
-- Console is on the **UART2 TX and RX pins**, 115200 baud 8N1
-- Check your USB-serial adapter is connected to the correct pins
-- Check available space: `df -h`
-- Ensure 20GB free before building
-- Clean old builds if needed
-
-**Wrong SD card flashed:**
-- Always verify device with `lsblk` before running flashSD.sh
-- Script will warn if device looks like system drive
-- Type "yes" to confirm
-
-**Won't boot after flashing:**
-1. Check serial console output (115200 baud, 8N1)
-2. Verify RFNM boot switches set to SD mode
-3. Verify boot partition has: Image, imx8mp-rfnm.dtb, boot.scr
-4. Try re-flashing SD card completely
-
-**Boots but network not working:**
-- Check kernel loaded network driver: `lsmod | grep -i eth`
-- Verify firmware installed: `ls /lib/firmware/`
-- Check kernel includes network support in defconfig
-
-## Advanced Usage
-
-### Rebuild Individual Components
-
-```bash
-# Rebuild only kernel
-cd /work/scripts/kernel
-./clean.sh
-./build.sh
-cd /work/scripts/debian
-./installKernelModules.sh
-```
-
-### Custom Kernel Configuration
-
-```bash
-cd /work/build/imx8mp-kernel
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- menuconfig
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc)
-```
-
-### Modify Debian Rootfs
-
-```bash
-cd /work/build/debian
-sudo cp /usr/bin/qemu-aarch64-static usr/bin/
-sudo chroot . /bin/bash
-# Make changes...
-exit
-```
-
-### Compress Image for Distribution
-
-```bash
-cd /work/build
-xz -z -9 -v rfnm-image.img
-# Creates rfnm-image.img.xz (~50% smaller for distribution)
-xz -d rfnm-image.img.xz  # Decompress before flashing
-```
-
-## FAQ
-
-**Q: Build is slow, can I speed it up?**
-A: Parallel builds use more CPU. Try `make -j$(nproc)` in kernel builds. More RAM and CPU cores help significantly.
-
-**Q: Can I use different kernel commits?**
-A: Edit `/work/scripts/git/checkoutGoodCommits.sh` to use different commits, but be aware this may cause build failures.
-
-**Q: How do I add packages to the system?**
-A: Either modify debian build script before building, or chroot into `/work/build/debian/` and install packages.
-
-**Q: What if I want to update just the kernel?**
-A: Rebuild kernel, reinstall modules to rootfs, then re-run `flashSD.sh` to write updated components.
-
-**Q: Can I use Docker instead of Podman?**
-A: Mostly yes - replace `podman` with `docker` in scripts, but copyContainerRoot behavior differs for root access.
-
-## Support
-- Check [../README.md](../README.md) for high-level overview
-- See [../../docs/device.md](../../docs/device.md) for device-specific info
-- Post issues on GitHub: [rfnm/rfnm-playbook](https://github.com/rfnm/rfnm-playbook)
-
-## What Gets Built
-1. **ARM Trusted Firmware (ATF)** - Low-level secure boot firmware
-2. **U-Boot** - Universal bootloader for iMX8MP
-3. **Linux Kernel 6.1+** - ARM64 kernel with RFNM patches
-4. **Debian 12 (Bookworm)** - Complete ARM64 root filesystem
-5. **RFNM Drivers** - LA9310 hardware driver and librfnm library
+- Top-level project docs: [../README.md](../README.md)
+- Device notes: [../../docs/device.md](../../docs/device.md)
   
