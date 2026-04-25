@@ -8,6 +8,7 @@ Replaces buildLinux.sh — run this directly inside the container.
 import os
 import sys
 import subprocess
+import time
 import questionary
 from questionary import Style
 
@@ -281,7 +282,8 @@ def weston_stage_states(rootfs_choice, rootfs_selected, rootfs_stages):
 
 
 def print_build_summary(title, steps, rootfs_choice, rootfs_name, rootfs_fresh, rootfs_stages,
-                        include_rfnm_rootfs, flash_choice, sd_device, usb_device):
+                        include_rfnm_rootfs, flash_choice, sd_device, usb_device,
+                        elapsed_seconds=None):
     rootfs_selected = steps.get('rootfs', False)
     stage_states = weston_stage_states(rootfs_choice, rootfs_selected, rootfs_stages)
     overlays = {
@@ -323,6 +325,10 @@ def print_build_summary(title, steps, rootfs_choice, rootfs_name, rootfs_fresh, 
         print(f'✅ Flash SD ({sd_device}) + USB ({usb_device})')
     else:
         print('❌ Flash (skipped)')
+    if elapsed_seconds is not None:
+        minutes, seconds = divmod(int(elapsed_seconds), 60)
+        hours, minutes = divmod(minutes, 60)
+        print(f'Time taken: {hours:02d}:{minutes:02d}:{seconds:02d}')
     print('-------------------------')
 
 
@@ -330,6 +336,7 @@ def print_build_summary(title, steps, rootfs_choice, rootfs_name, rootfs_fresh, 
 
 def execute(steps, rootfs_script, rootfs_name, rootfs_fresh, rootfs_stages,
             flash_choice, sd_device, usb_device, include_rfnm_rootfs, rootfs_choice):
+    start_time = time.time()
     print_build_summary(
         'Build Plan', steps, rootfs_choice, rootfs_name, rootfs_fresh, rootfs_stages,
         include_rfnm_rootfs, flash_choice, sd_device, usb_device
@@ -416,7 +423,8 @@ def execute(steps, rootfs_script, rootfs_name, rootfs_fresh, rootfs_stages,
 
     print_build_summary(
         'Build Summary', steps, rootfs_choice, rootfs_name, rootfs_fresh, rootfs_stages,
-        include_rfnm_rootfs, flash_choice, sd_device, usb_device
+        include_rfnm_rootfs, flash_choice, sd_device, usb_device,
+        elapsed_seconds=time.time() - start_time
     )
     echo_step('All done!')
     print(f'\n{GREEN}{BOLD}✓  All steps completed successfully.{NC}\n', flush=True)
