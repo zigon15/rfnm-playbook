@@ -8,21 +8,21 @@
 #   4 — vivante          (download Vivante GPU + Hantro VPU userspace → debian-stages/galcore/)
 #   5 — weston           (compile weston-imx   → debian-stages/weston/)
 #   6 — merge            (wipe debian/, copy chroot + vivante + weston, ldconfig)
-#   7 — kernel-modules   (install .ko files + NXP firmware into debian/)
-#   8 — rfnm             (LA9310 driver modules + FreeRTOS firmware into debian/)
+#   7 — kernel-modules   (install .ko + NXP firmware, and optional RFNM artifacts)
 #
 # Run all stages (default):
 #   ./buildWeston_GalcoreGPU.sh
 #
 # Run a specific subset of stages:
 #   STAGES="4 6"   ./buildWeston_GalcoreGPU.sh   # vivante + merge
-#   STAGES="7 8"   ./buildWeston_GalcoreGPU.sh   # re-install modules only
+#   STAGES="7"     ./buildWeston_GalcoreGPU.sh   # re-install modules (+ optional RFNM)
 #   STAGES="6"     ./buildWeston_GalcoreGPU.sh   # just merge
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/stages/common.sh"
-STAGES="${STAGES:-1 2 3 4 5 6 7 8}"
+STAGES="${STAGES:-1 2 3 4 5 6 7}"
+RFNM_SUPPORT="${RFNM_SUPPORT:-1}"
 
 should_run() {
     num=$1
@@ -98,7 +98,16 @@ if should_run 6; then
 fi
 
 run_stage 7 07-kernel-modules.sh
-run_stage 8 08-rfnm.sh
+
+if [ "$RFNM_SUPPORT" = "1" ]; then
+    echo ""
+    echo "════════════════════════════════════════"
+    echo "  RFNM install — sub/installRfnm.sh"
+    echo "════════════════════════════════════════"
+    "$SCRIPT_DIR/sub/installRfnm.sh"
+else
+    echo "[SKIP] RFNM install — RFNM_SUPPORT=0"
+fi
 
 echo ""
 echo "✓  Weston rootfs build complete."

@@ -134,7 +134,6 @@ ROOTFS_STAGE_LABELS = {
         (5, 'weston         (compile from source)'),
         (6, 'merge'),
         (7, 'kernel-modules (install .ko + NXP firmware)'),
-        (8, 'rfnm           (LA9310 driver + firmware)'),
     ],
 }
 
@@ -189,7 +188,7 @@ def ask_rootfs_build_mode(rootfs_choice):
         for n, label in build_stages
     ]
     selected = questionary.checkbox(
-        'Stages to run  (merge runs automatically):',
+        'Stages to run:',
         choices=choices,
         style=STYLE,
     ).ask()
@@ -211,42 +210,130 @@ def ask_rootfs_build_mode(rootfs_choice):
     return False, selected
 
 
+def ask_include_rfnm_support(default=True):
+    include = questionary.confirm(
+        'Include RFNM support in rootfs (overlay + LA9310 artifacts)?',
+        default=default,
+        style=STYLE,
+    ).ask()
+    if include is None:
+        sys.exit(1)
+    return include
+
+
+def apply_rfnm_rootfs_stage_policy(rootfs_choice, rootfs_stages, include_rfnm):
+    """Ensure stage 7 runs when RFNM support is requested."""
+    if rootfs_choice != 'weston':
+        return rootfs_stages
+
+    # All stages selected: stage 7 is included by default.
+    if rootfs_stages is None:
+        return None
+
+    # If the user explicitly requested RFNM, ensure stage 7 runs because it now
+    # performs both kernel module install and install.
+    if include_rfnm and 7 not in rootfs_stages:
+        rootfs_stages = sorted(rootfs_stages + [7])
+    return rootfs_stages
+
+
+def ensure_flash_safe_rootfs_stages(rootfs_choice, rootfs_stages, flash_choice, include_rfnm):
+    """When flashing, include post-merge stages needed for bootable rootfs."""
+    if flash_choice == 'none' or rootfs_stages is None:
+        return rootfs_stages
+    if rootfs_choice != 'weston':
+        return rootfs_stages
+
+    # Stage 7 installs kernel modules/firmware.
+    required = [7]
+    missing = [s for s in required if s not in rootfs_stages]
+    if missing:
+        rootfs_stages = sorted(rootfs_stages + missing)
+        print(
+            f'Note: flashing selected; auto-adding rootfs stages '
+            f'{", ".join(str(s) for s in missing)}.',
+            flush=True,
+        )
+    return rootfs_stages
+
+
+def status_icon(ok):
+    return '✅' if ok else '❌'
+
+
+def rootfs_mode_label(rootfs_fresh, rootfs_stages):
+    if rootfs_stages is not None:
+        return f'Selected stages ({", ".join(str(s) for s in rootfs_stages)})'
+    if rootfs_fresh:
+        return 'Build from scratch'
+    return 'All stages (reuse existing build dir)'
+
+
+def weston_stage_states(rootfs_choice, rootfs_selected, rootfs_stages):
+    if not rootfs_selected or rootfs_choice != 'weston':
+        return []
+    stage_defs = ROOTFS_STAGE_LABELS['weston']
+    if rootfs_stages is None:
+        run_set = {n for n, _ in stage_defs}
+    else:
+        run_set = set(rootfs_stages)
+    return [(n, label, n in run_set) for n, label in stage_defs]
+
+
+def print_build_summary(title, steps, rootfs_choice, rootfs_name, rootfs_fresh, rootfs_stages,
+                        include_rfnm_rootfs, flash_choice, sd_device, usb_device):
+    rootfs_selected = steps.get('rootfs', False)
+    stage_states = weston_stage_states(rootfs_choice, rootfs_selected, rootfs_stages)
+    overlays = {
+        'base': os.path.isdir('/work/scripts/debian/rootfs-overlay/base'),
+        'vivante': os.path.isdir('/work/scripts/debian/rootfs-overlay/vivante'),
+        'rfnm': os.path.isdir('/work/scripts/debian/rootfs-overlay/rfnm'),
+    }
+
+    print(f'\n----- {title} -----')
+    print(f'{status_icon(steps.get("repos", False))} Repos cloned')
+    print(f'{status_icon(steps.get("uboot", False))} U-Boot + ATF rebuilt')
+    print(f'{status_icon(steps.get("kernel", False))} Kernel rebuilt')
+    print(f'{status_icon(steps.get("la9310_rtos", False))} LA9310 RTOS rebuilt')
+    print(f'{status_icon(steps.get("la9310_driver", False))} LA9310 Driver rebuilt')
+
+    if rootfs_selected:
+        print(f'{status_icon(True)} Rootfs rebuilt ({rootfs_name})')
+        print(f'   Mode: {rootfs_mode_label(rootfs_fresh, rootfs_stages)}')
+        for num, label, ran in stage_states:
+            print(f'   {status_icon(ran)} Stage {num} {label}')
+            if num == 3:
+                if ran:
+                    print(f'      {status_icon(overlays["base"])} base overlay copied')
+                    print(f'      {status_icon(overlays["vivante"])} vivante overlay copied')
+                else:
+                    print(f'      {status_icon(False)} base overlay copied (skipped)')
+                    print(f'      {status_icon(False)} vivante overlay copied (skipped)')
+        if include_rfnm_rootfs:
+            print(f'   {status_icon(True)} RFNM artifacts install')
+            print(f'      {status_icon(overlays["rfnm"])} rfnm overlay copied')
+        else:
+            print(f'   {status_icon(False)} RFNM artifacts install (skipped)')
+    else:
+        print(f'{status_icon(False)} Rootfs rebuilt ({rootfs_name}) (skipped)')
+
+    if flash_choice == 'sd':
+        print(f'✅ Flash SD ({sd_device})')
+    elif flash_choice == 'sd_usb':
+        print(f'✅ Flash SD ({sd_device}) + USB ({usb_device})')
+    else:
+        print('❌ Flash (skipped)')
+    print('-------------------------')
+
+
 # ── Shared: execute build + flash steps ───────────────────────────────────────
 
 def execute(steps, rootfs_script, rootfs_name, rootfs_fresh, rootfs_stages,
-            flash_choice, sd_device, usb_device):
-    DIM = '\033[2m'
-
-    # Build plan summary
-    print(f'\n{BOLD}Build plan:{NC}')
-    if rootfs_stages is not None:
-        rootfs_mode_tag = f'  (stages: {", ".join(str(s) for s in rootfs_stages)})'
-    elif not rootfs_fresh:
-        rootfs_mode_tag = '  (skip clean)'
-    else:
-        rootfs_mode_tag = ''
-
-    labels = [
-        ('repos',         'Repositories  (clone + firmware)'),
-        ('uboot',         'U-Boot + ARM Trusted Firmware'),
-        ('kernel',        'Linux Kernel'),
-        ('la9310_rtos',   'LA9310 RTOS Firmware'),
-        ('la9310_driver', 'LA9310 Kernel Driver'),
-        ('rootfs',        f'Debian Rootfs  ({rootfs_name}){rootfs_mode_tag}'),
-    ]
-    for key, label in labels:
-        if steps.get(key):
-            print(f'  {GREEN}✓{NC}  {label}')
-        else:
-            print(f'  {DIM}✗  {label}  (skipped){NC}')
-
-    if flash_choice == 'sd':
-        print(f'  {GREEN}✓{NC}  Flash SD card  ({sd_device})')
-    elif flash_choice == 'sd_usb':
-        print(f'  {GREEN}✓{NC}  Flash U-Boot → SD  ({sd_device})')
-        print(f'  {GREEN}✓{NC}  Flash kernel+rootfs → USB  ({usb_device})')
-    else:
-        print(f'  {DIM}✗  Flash  (skipped){NC}')
+            flash_choice, sd_device, usb_device, include_rfnm_rootfs, rootfs_choice):
+    print_build_summary(
+        'Build Plan', steps, rootfs_choice, rootfs_name, rootfs_fresh, rootfs_stages,
+        include_rfnm_rootfs, flash_choice, sd_device, usb_device
+    )
 
     confirmed = questionary.confirm('\nStart?', default=True, style=STYLE).ask()
     if not confirmed:
@@ -303,11 +390,12 @@ def execute(steps, rootfs_script, rootfs_name, rootfs_fresh, rootfs_stages,
         cmd_parts = ['set -e', 'cd /work/scripts/debian']
         if rootfs_fresh:
             cmd_parts.append('./clean.sh')
+        rfnm_support = '1' if include_rfnm_rootfs else '0'
         if rootfs_stages is not None:
             stages_str = ' '.join(str(s) for s in rootfs_stages)
-            cmd_parts.append(f'STAGES="{stages_str}" ./{rootfs_script}')
+            cmd_parts.append(f'RFNM_SUPPORT="{rfnm_support}" STAGES="{stages_str}" ./{rootfs_script}')
         else:
-            cmd_parts.append(f'./{rootfs_script}')
+            cmd_parts.append(f'RFNM_SUPPORT="{rfnm_support}" ./{rootfs_script}')
         run_step(f'Building Debian Rootfs  ({rootfs_name})', '\n'.join(cmd_parts))
 
     # Flash steps
@@ -326,6 +414,10 @@ def execute(steps, rootfs_script, rootfs_name, rootfs_fresh, rootfs_stages,
             USB_DEVICE={usb_device} /work/scripts/flashUSB_Linux.sh
         ''')
 
+    print_build_summary(
+        'Build Summary', steps, rootfs_choice, rootfs_name, rootfs_fresh, rootfs_stages,
+        include_rfnm_rootfs, flash_choice, sd_device, usb_device
+    )
     echo_step('All done!')
     print(f'\n{GREEN}{BOLD}✓  All steps completed successfully.{NC}\n', flush=True)
 
@@ -385,7 +477,7 @@ def main():
         usb_device = ask_device('USB drive device:', 'USB_DEVICE') if flash_choice == 'sd_usb' else None
         steps = {k: False for k in ('repos', 'uboot', 'kernel', 'la9310_rtos',
                                      'la9310_driver', 'rootfs', 'kernel_modules')}
-        execute(steps, 'build_GalcoreGPU.sh', 'Base', False, None, flash_choice, sd_device, usb_device)
+        execute(steps, 'build_GalcoreGPU.sh', 'Base', False, None, flash_choice, sd_device, usb_device, False, 'base')
         return
 
     # ── Build mode ─────────────────────────────────────────────────────────────
@@ -412,18 +504,20 @@ def main():
 
         rootfs_fresh, rootfs_stages = True, None  # full build always starts clean
 
-        build_rfnm = questionary.confirm(
-            'Include RFNM LA9310 support (RTOS firmware, kernel driver, librfnm)?',
-            default=True,
-            style=STYLE,
-        ).ask()
-        if build_rfnm is None:
-            sys.exit(1)
+        build_rfnm = ask_include_rfnm_support(default=True)
+        include_rfnm_rootfs = build_rfnm
+        rootfs_stages = apply_rfnm_rootfs_stage_policy(
+            rootfs_choice, rootfs_stages, include_rfnm_rootfs
+        )
 
         if action == 'build_flash':
             flash_choice, sd_device, usb_device = ask_flash()
         else:
             flash_choice, sd_device, usb_device = 'none', None, None
+
+        rootfs_stages = ensure_flash_safe_rootfs_stages(
+            rootfs_choice, rootfs_stages, flash_choice, include_rfnm_rootfs
+        )
 
         steps = {
             'repos':         True,
@@ -466,12 +560,22 @@ def main():
             ).ask()
             if rootfs_choice is None:
                 sys.exit(1)
+            include_rfnm_rootfs = ask_include_rfnm_support(default=True)
             rootfs_fresh, rootfs_stages = ask_rootfs_build_mode(rootfs_choice)
+            rootfs_stages = apply_rfnm_rootfs_stage_policy(
+                rootfs_choice, rootfs_stages, include_rfnm_rootfs
+            )
+        else:
+            include_rfnm_rootfs = False
 
         if action == 'build_flash':
             flash_choice, sd_device, usb_device = ask_flash()
         else:
             flash_choice, sd_device, usb_device = 'none', None, None
+
+        rootfs_stages = ensure_flash_safe_rootfs_stages(
+            rootfs_choice, rootfs_stages, flash_choice, include_rfnm_rootfs
+        )
 
         steps = {k: k in selected for k in
                  ('uboot', 'kernel', 'la9310_rtos', 'la9310_driver', 'rootfs')}
@@ -480,7 +584,7 @@ def main():
         rootfs_name   = ROOTFS_NAMES.get(rootfs_choice, rootfs_choice.replace('_', ' ').capitalize())
 
     execute(steps, rootfs_script, rootfs_name, rootfs_fresh, rootfs_stages,
-            flash_choice, sd_device, usb_device)
+            flash_choice, sd_device, usb_device, include_rfnm_rootfs, rootfs_choice)
 
 
 if __name__ == '__main__':

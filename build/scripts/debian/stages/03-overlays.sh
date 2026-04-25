@@ -16,8 +16,10 @@ for overlay in base vivante; do
     if [ -d "$overlay_dir" ]; then
         echo "[03-overlays] Installing $overlay overlay..."
         cp -a "$overlay_dir/." "$CHROOT_DIR/"
+        echo "[SUMMARY] overlay:$overlay:copied"
     else
         echo "[03-overlays] $overlay overlay not found at $overlay_dir, skipping."
+        echo "[SUMMARY] overlay:$overlay:missing"
     fi
 done
 

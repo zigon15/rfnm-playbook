@@ -6,6 +6,7 @@ BUILD_DIR='/work/build/debian'
 ROOT_PASSWORD="rfnm"
 DEBIAN_RELEASE="trixie"
 MIRROR="http://deb.debian.org/debian"
+RFNM_SUPPORT="${RFNM_SUPPORT:-1}"
 
 mkdir -p "$BUILD_DIR"
 
@@ -124,6 +125,13 @@ done
 
 # Install Vivante GPU userspace driver
 ./sub/installGalcoreDriver.sh
+
+if [ "$RFNM_SUPPORT" = "1" ]; then
+    echo "Installing RFNM artifacts..."
+    ./sub/installRfnm.sh
+else
+    echo "Skipping RFNM artifacts (RFNM_SUPPORT=0)."
+fi
 
 # Fix libGLESv2.so.2 symlink to point to Vivante real impl, not GLVND stub
 ln -sf libGLESv2.so.2.0.0 "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2"
