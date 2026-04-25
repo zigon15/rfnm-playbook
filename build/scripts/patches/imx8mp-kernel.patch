@@ -1,0 +1,51 @@
+From 62b0f9006c9553cf36ad9dc3cbec46a8f7fe82d2 Mon Sep 17 00:00:00 2001
+From: Simon <simonzigon15@gmail.com>
+Date: Sat, 24 Jan 2026 11:00:27 +1030
+Subject: [PATCH] Include fix and GCC-14 enum-int-mismatch fix in gpu-viv
+
+The Vivante (gpu-viv) source forward-declares _QuerySignal as returning
+gctBOOL but the definition returns gceSTATUS (an enum). GCC 14 in Debian
+trixie treats this as -Werror=enum-int-mismatch. The .c definition is the
+correct one (it returns the gceSTATUS from _QueryIntegerId); align the
+header forward declaration to match.
+
+---
+ drivers/mxc/gpu-viv/hal/os/linux/kernel/gc_hal_kernel_linux.h | 2 +-
+ include/linux/rfnm-shared.h                                   | 9 +--------
+ 2 files changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/mxc/gpu-viv/hal/os/linux/kernel/gc_hal_kernel_linux.h b/drivers/mxc/gpu-viv/hal/os/linux/kernel/gc_hal_kernel_linux.h
+--- a/drivers/mxc/gpu-viv/hal/os/linux/kernel/gc_hal_kernel_linux.h
++++ b/drivers/mxc/gpu-viv/hal/os/linux/kernel/gc_hal_kernel_linux.h
+@@ -318,7 +318,7 @@
+     OUT gctPHYS_ADDR_T * Physical
+     );
+ 
+-gctBOOL
++gceSTATUS
+ _QuerySignal(
+     IN gckOS Os,
+     IN gctSIGNAL Signal
+diff --git a/include/linux/rfnm-shared.h b/include/linux/rfnm-shared.h
+index dc3bf4f58e41..e30aba715ec7 100644
+--- a/include/linux/rfnm-shared.h
++++ b/include/linux/rfnm-shared.h
+@@ -92,14 +92,7 @@ struct __attribute__((__packed__)) rfnm_bootconfig {
+ 
+ 
+ 
+-
+-
+-
+-
+-
+-
+-
+-#include </home/davide/imx-rfnm-bsp/build/tmp/work-shared/imx8mp-rfnm/kernel-source/include/linux/rfnm-api.h>
++#include <linux/rfnm-api.h>
+ 
+ 
+ 
+-- 
+2.51.0
+

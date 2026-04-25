@@ -1,0 +1,25 @@
+From 45fcc4a1eef5dd9cb86d5cd3c211cc76f84e49b6 Mon Sep 17 00:00:00 2001
+From: Simon <simonzigon15@gmail.com>
+Date: Sun, 8 Feb 2026 15:31:28 +1030
+Subject: [PATCH] Allow linux code to access registers
+
+---
+ plat/imx/imx8m/imx8mp/imx8mp_bl31_setup.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/plat/imx/imx8m/imx8mp/imx8mp_bl31_setup.c b/plat/imx/imx8m/imx8mp/imx8mp_bl31_setup.c
+index 38809ad..ed04eca 100644
+--- a/plat/imx/imx8m/imx8mp/imx8mp_bl31_setup.c
++++ b/plat/imx/imx8m/imx8mp/imx8mp_bl31_setup.c
+@@ -152,7 +152,7 @@ static const struct imx_csu_cfg csu_cfg[] = {
+ 	/* peripherals csl setting */
+ 	CSU_CSLx(CSU_CSL_OCRAM, CSU_SEC_LEVEL_2, LOCKED),
+ 	CSU_CSLx(CSU_CSL_OCRAM_S, CSU_SEC_LEVEL_2, LOCKED),
+-	CSU_CSLx(CSU_CSL_RDC, CSU_SEC_LEVEL_3, LOCKED),
++	CSU_CSLx(CSU_CSL_RDC, CSU_SEC_LEVEL_0, LOCKED),
+ 	CSU_CSLx(CSU_CSL_TZASC, CSU_SEC_LEVEL_5, LOCKED),
+ 	CSU_CSLx(CSU_CSL_CSU, CSU_SEC_LEVEL_5, LOCKED),
+ 
+-- 
+2.51.0
+
