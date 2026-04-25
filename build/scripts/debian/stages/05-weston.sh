@@ -3,7 +3,7 @@
 # Builds weston-imx from source inside the arm64 chroot (QEMU emulation) and
 # stages the installed artifacts to $WESTON_STAGE via meson DESTDIR.
 #
-# Requires 04-galcore.sh to have run first (Vivante headers + pkg-config must
+# Requires 04-vivante.sh to have run first (Vivante headers + pkg-config must
 # be present in $CHROOT_DIR/usr/).
 #
 # https://layers.openembedded.org/layerindex/recipe/402089/
@@ -109,7 +109,7 @@ rm -rf /tmp/wayland-protocols-imx-src /tmp/wp-imx-build
 
 # Configure weston-imx.
 # Vivante EGL/GLES/GBM .pc files are in /usr/lib/aarch64-linux-gnu/pkgconfig
-# (installed by 04-galcore.sh), so no PKG_CONFIG_PATH override is needed.
+# (installed by 04-vivante.sh), so no PKG_CONFIG_PATH override is needed.
 # Do NOT install libegl-dev / libgles2-dev / libgbm-dev — Vivante .pc files
 # take priority and Mesa's would conflict.
 rm -rf /tmp/weston-imx-build
@@ -177,7 +177,7 @@ Environment=SEATD_SOCK=/run/seatd.sock
 ExecStartPre=+/bin/mkdir -p /run/user/1000
 ExecStartPre=+/bin/chown rfnm:rfnm /run/user/1000
 ExecStartPre=+/bin/chmod 700 /run/user/1000
-ExecStart=/usr/bin/weston --backend=drm-backend.so --idle-time=0
+ExecStart=/usr/bin/weston --backend=drm-backend.so --idle-time=0 --log=/tmp/weston-service.log
 StandardOutput=journal
 StandardError=journal
 Restart=on-failure

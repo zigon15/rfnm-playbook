@@ -2,7 +2,7 @@
 # Stage 03 — overlays
 # Copies rootfs-overlay/base and rootfs-overlay/vivante into $CHROOT_DIR.
 # Vivante driver runtime libraries and weston binaries are handled by later
-# stages (04-galcore, 05-weston) or the merge script.
+# stages (04-vivante, 05-weston) or the merge script.
 set -e
 . "$(dirname "$0")/common.sh"
 

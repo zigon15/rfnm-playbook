@@ -130,27 +130,18 @@ ROOTFS_STAGE_LABELS = {
         (1, 'debootstrap'),
         (2, 'configure'),
         (3, 'overlays'),
-        (4, 'galcore        (download Vivante drivers)'),
+        (4, 'vivante        (download Vivante GPU + Hantro VPU userspace)'),
         (5, 'weston         (compile from source)'),
         (6, 'merge'),
         (7, 'kernel-modules (install .ko + NXP firmware)'),
         (8, 'rfnm           (LA9310 driver + firmware)'),
-    ],
-    'weston_overlay': [
-        (1, 'debootstrap'),
-        (2, 'configure'),
-        (3, 'overlays'),
-        (4, 'merge-overlay  (copy prebuilt)'),
-        (5, 'kernel-modules (install .ko + NXP firmware)'),
-        (6, 'rfnm           (LA9310 driver + firmware)'),
     ],
 }
 
 # The merge stage number for each variant. Any selection that includes a
 # non-merge stage automatically has the merge stage appended.
 ROOTFS_MERGE_STAGE = {
-    'weston':         6,
-    'weston_overlay': 4,
+    'weston': 6,
 }
 
 
@@ -342,17 +333,21 @@ def execute(steps, rootfs_script, rootfs_name, rootfs_fresh, rootfs_stages,
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 ROOTFS_SCRIPTS = {
-    'weston':         'buildWeston_GalcoreGPU.sh',
-    'weston_overlay': 'buildWeston_GalcoreGPU_overlay.sh',
-    'desktop':        'buildDesktop_GalcoreGPU.sh',
-    'base':           'build_GalcoreGPU.sh',
+    'weston':  'buildWeston_GalcoreGPU.sh',
+    'desktop': 'buildDesktop_GalcoreGPU.sh',
+    'base':    'build_GalcoreGPU.sh',
+}
+
+ROOTFS_NAMES = {
+    'weston':  'Weston  (Wayland compositor + Vivante GL)',
+    'desktop': 'Desktop',
+    'base':    'Base',
 }
 
 ROOTFS_VARIANT_CHOICES = [
-    questionary.Choice('Weston          — Wayland compositor + Vivante GL  (download + compile)', value='weston'),
-    questionary.Choice('Weston overlay  — Wayland compositor + Vivante GL  (prebuilt overlay)',   value='weston_overlay'),
-    questionary.Choice('Desktop         — KDE Plasma desktop  (broken)',                           value='desktop'),
-    questionary.Choice('Base            — Headless',                                               value='base'),
+    questionary.Choice('Weston   — Wayland compositor + Vivante GL', value='weston'),
+    questionary.Choice('Desktop  — KDE Plasma desktop  (broken)',    value='desktop'),
+    questionary.Choice('Base     — Headless',                        value='base'),
 ]
 
 
@@ -439,7 +434,7 @@ def main():
             'rootfs':        True,
         }
         rootfs_script = ROOTFS_SCRIPTS[rootfs_choice]
-        rootfs_name   = rootfs_choice.replace('_', ' ').capitalize()
+        rootfs_name   = ROOTFS_NAMES.get(rootfs_choice, rootfs_choice.replace('_', ' ').capitalize())
 
     # ── Partial rebuild ────────────────────────────────────────────────────────
     else:
@@ -482,7 +477,7 @@ def main():
                  ('uboot', 'kernel', 'la9310_rtos', 'la9310_driver', 'rootfs')}
         steps['repos'] = False
         rootfs_script = ROOTFS_SCRIPTS[rootfs_choice]
-        rootfs_name   = rootfs_choice.replace('_', ' ').capitalize()
+        rootfs_name   = ROOTFS_NAMES.get(rootfs_choice, rootfs_choice.replace('_', ' ').capitalize())
 
     execute(steps, rootfs_script, rootfs_name, rootfs_fresh, rootfs_stages,
             flash_choice, sd_device, usb_device)

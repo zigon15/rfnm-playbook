@@ -18,6 +18,8 @@ MIRROR='http://deb.debian.org/debian'
 # $0 is the top-level script even when this file is sourced, so dirname($0)
 # gives the stages/ dir and one level up gives debian/.
 DEBIAN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+DEBUG_LOG_PATH="${DEBUG_LOG_PATH:-/work/.cursor/debug-cbba97.log}"
+DEBUG_RUN_ID="${DEBUG_RUN_ID:-pre-fix}"
 
 # ── Chroot mount helpers ──────────────────────────────────────────────────────
 mount_chroot() {
@@ -32,4 +34,15 @@ umount_chroot() {
     umount "$dir/dev"  2>/dev/null || true
     umount "$dir/sys"  2>/dev/null || true
     umount "$dir/proc" 2>/dev/null || true
+}
+
+debug_log() {
+    hypothesis_id="$1"
+    location="$2"
+    message="$3"
+    data="$4"
+    mkdir -p "$(dirname "$DEBUG_LOG_PATH")"
+    ts="$(date +%s%3N 2>/dev/null || echo 0)"
+    printf '{"sessionId":"cbba97","runId":"%s","hypothesisId":"%s","location":"%s","message":"%s","data":{"details":"%s"},"timestamp":%s}\n' \
+        "$DEBUG_RUN_ID" "$hypothesis_id" "$location" "$message" "$data" "$ts" >> "$DEBUG_LOG_PATH"
 }

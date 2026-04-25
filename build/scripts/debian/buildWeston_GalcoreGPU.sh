@@ -5,9 +5,9 @@
 #   1 — debootstrap      (base Debian rootfs in debian-build/)
 #   2 — configure        (packages, users, networking)
 #   3 — overlays         (rootfs-overlay/base + rootfs-overlay/vivante)
-#   4 — galcore          (download Vivante driver → debian-stages/galcore/)
+#   4 — vivante          (download Vivante GPU + Hantro VPU userspace → debian-stages/galcore/)
 #   5 — weston           (compile weston-imx   → debian-stages/weston/)
-#   6 — merge            (wipe debian/, copy chroot + galcore + weston, ldconfig)
+#   6 — merge            (wipe debian/, copy chroot + vivante + weston, ldconfig)
 #   7 — kernel-modules   (install .ko files + NXP firmware into debian/)
 #   8 — rfnm             (LA9310 driver modules + FreeRTOS firmware into debian/)
 #
@@ -15,7 +15,7 @@
 #   ./buildWeston_GalcoreGPU.sh
 #
 # Run a specific subset of stages:
-#   STAGES="4 6"   ./buildWeston_GalcoreGPU.sh   # galcore + merge
+#   STAGES="4 6"   ./buildWeston_GalcoreGPU.sh   # vivante + merge
 #   STAGES="7 8"   ./buildWeston_GalcoreGPU.sh   # re-install modules only
 #   STAGES="6"     ./buildWeston_GalcoreGPU.sh   # just merge
 set -e
@@ -48,7 +48,7 @@ run_stage() {
 run_stage 1 01-debootstrap.sh
 run_stage 2 02-configure.sh
 run_stage 3 03-overlays.sh
-run_stage 4 04-galcore.sh
+run_stage 4 04-vivante.sh
 run_stage 5 05-weston.sh
 
 # ── Stage 6: merge ────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ if should_run 6; then
         exit 1
     fi
     if [ ! -d "$GALCORE_STAGE" ]; then
-        echo "Error: $GALCORE_STAGE not found — run stage 4 (galcore) first."
+        echo "Error: $GALCORE_STAGE not found — run stage 4 (vivante) first."
         exit 1
     fi
     if [ ! -d "$WESTON_STAGE" ]; then
