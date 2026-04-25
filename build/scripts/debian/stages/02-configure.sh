@@ -59,7 +59,9 @@ apt-get install -y \
     libseat1 \
     libva2 \
     libva-drm2 \
-    xwayland
+    xwayland \
+    libgl1 \
+    libegl-mesa0
 
 systemctl enable seatd
 
