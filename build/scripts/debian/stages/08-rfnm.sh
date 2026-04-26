@@ -48,4 +48,10 @@ echo "Installing LA9310 firmware..."
 cp -v "$FREERTOS_BIN" "$FIRMWARE_DIR/la9310.bin"
 chmod 644 "$FIRMWARE_DIR/la9310.bin"
 
+# Write build-time config file for runtime use by load_drivers and rc.local
+cat > "$BUILD_DIR/rfnm/scripts/rfnm-build.conf" << EOF
+USB_A_MODE=${USB_A_MODE:-device}
+RFNM_LOAD_ON_STARTUP=${RFNM_LOAD_ON_STARTUP:-0}
+EOF
+
 echo "✓  RFNM LA9310 install complete."

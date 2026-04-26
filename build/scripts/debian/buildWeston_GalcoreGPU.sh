@@ -4,10 +4,9 @@
 # Stages:
 #   1 — debootstrap      (base Debian rootfs in debian-build/)
 #   2 — configure        (packages, users, networking)
-#   3 — overlays         (rootfs-overlay/base + rootfs-overlay/vivante)
 #   4 — vivante          (download Vivante GPU + Hantro VPU userspace → debian-stages/galcore/)
 #   5 — weston           (compile weston-imx   → debian-stages/weston/)
-#   6 — merge            (wipe debian/, copy chroot + vivante + weston, ldconfig)
+#   6 — merge+overlays   (apply overlays, wipe debian/, copy chroot + vivante + weston, ldconfig)
 #   7 — kernel-modules   (install .ko files + NXP firmware into debian/)
 #   8 — rfnm             (LA9310 driver modules + FreeRTOS firmware into debian/)
 #
@@ -22,7 +21,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/stages/common.sh"
-STAGES="${STAGES:-1 2 3 4 5 6 7 8}"
+STAGES="${STAGES:-1 2 4 5 6 7 8}"
 
 should_run() {
     num=$1
@@ -47,23 +46,31 @@ run_stage() {
 
 run_stage 1 01-debootstrap.sh
 run_stage 2 02-configure.sh
-run_stage 3 03-overlays.sh
 run_stage 4 04-vivante.sh
 run_stage 5 05-weston.sh
 
-# ── Stage 6: merge ────────────────────────────────────────────────────────────
-# Assemble the final rootfs from staged directories, fix the libGLESv2 symlink,
-# and run ldconfig.
+# ── Stage 6: merge + overlays ─────────────────────────────────────────────────
+# Apply rootfs overlays, then assemble the final rootfs from staged directories,
+# fix the libGLESv2 symlink, and run ldconfig.
 if should_run 6; then
     echo ""
     echo "════════════════════════════════════════"
-    echo "  Stage 6 — merge"
+    echo "  Stage 6 — merge + overlays"
     echo "════════════════════════════════════════"
 
     if [ ! -d "$CHROOT_DIR" ]; then
-        echo "Error: $CHROOT_DIR not found — run stages 1-3 first."
+        echo "Error: $CHROOT_DIR not found — run stages 1-2 first."
         exit 1
     fi
+
+    # Apply rootfs overlays on top of the chroot.
+    for overlay in base vivante; do
+        overlay_dir="$SCRIPT_DIR/rootfs-overlay/$overlay"
+        if [ -d "$overlay_dir" ]; then
+            echo "Applying $overlay overlay..."
+            cp -a "$overlay_dir/." "$CHROOT_DIR/"
+        fi
+    done
     if [ ! -d "$GALCORE_STAGE" ]; then
         echo "Error: $GALCORE_STAGE not found — run stage 4 (vivante) first."
         exit 1

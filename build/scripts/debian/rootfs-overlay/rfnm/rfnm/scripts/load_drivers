@@ -1,3 +1,9 @@
+# Source build-time config, with defaults
+if [ -f /rfnm/scripts/rfnm-build.conf ]; then
+    . /rfnm/scripts/rfnm-build.conf
+fi
+: "${USB_A_MODE:=device}"
+
 #dump kernel messages to console
 echo 7 > /proc/sys/kernel/printk
 
@@ -10,8 +16,10 @@ echo 7 > /proc/sys/kernel/printk
 # disable power to usb-a
 gpioset 2 6=1
 
-#enable boost device
-echo "device" > /sys/kernel/debug/usb/38200000.usb/mode
+#enable boost device (skip in host mode to avoid crash)
+if [ "$USB_A_MODE" != "host" ]; then
+    echo "device" > /sys/kernel/debug/usb/38200000.usb/mode
+fi
 
 # m4 jtag enable
 gpioget 2 9
@@ -40,7 +48,9 @@ insmod /rfnm/kernel/rfnm_daughterboard.ko
 
 insmod /rfnm/kernel/rfnm_usb_function.ko
 insmod /rfnm/kernel/rfnm_usb.ko file=/rfnm/scripts/backing_storage
-insmod /rfnm/kernel/rfnm_usb_boost.ko file=/rfnm/scripts/backing_storage_boost
+if [ "$USB_A_MODE" != "host" ]; then
+    insmod /rfnm/kernel/rfnm_usb_boost.ko file=/rfnm/scripts/backing_storage_boost
+fi
 
 insmod /rfnm/kernel/rfnm_lime.ko
 insmod /rfnm/kernel/rfnm_granita.ko
