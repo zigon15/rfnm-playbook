@@ -28,7 +28,19 @@ then
     fi
 fi
 
+# Source build-time config, with defaults
+if [ -f /rfnm/scripts/rfnm-build.conf ]; then
+    . /rfnm/scripts/rfnm-build.conf
+fi
+: "${RFNM_LOAD_ON_STARTUP:=0}"
+: "${USB_A_MODE:=device}"
+
 # /rfnm/scripts/load_drivers &
-/rfnm/scripts/enable_usb-a &
+if [ "$RFNM_LOAD_ON_STARTUP" = "1" ]; then
+    /rfnm/scripts/load_drivers &
+fi
+if [ "$USB_A_MODE" != "host" ]; then
+    /rfnm/scripts/enable_usb-a &
+fi
 
 exit 0

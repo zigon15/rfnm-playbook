@@ -1,4 +1,7 @@
-mkdir -p build
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+BRANCH_NAME="$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")"
+
+mkdir -p "build/${BRANCH_NAME}"
 
 ENV_ARGS=""
 if [ -n "$1" ]; then
@@ -11,10 +14,13 @@ if [ -n "$1" ]; then
     fi
 fi
 
+echo "Building from branch: ${BRANCH_NAME}"
+
 podman run -it --privileged --rm \
     -v /dev:/dev \
     $ENV_ARGS \
     --network host \
-    -v $(pwd)/scripts:/work/scripts \
-    -v $(pwd)/build:/work/build \
+    -e BRANCH_NAME="$BRANCH_NAME" \
+    -v "$(pwd)/scripts:/work/scripts" \
+    -v "$(pwd)/build/${BRANCH_NAME}:/work/build" \
     rfnm-builder "$@"
