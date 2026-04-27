@@ -1,5 +1,5 @@
 #!/bin/sh
-# Stage 04 — vivante (GPU userspace) + Hantro VPU
+# Stage 03 — vivante (GPU userspace) + Hantro VPU
 # Downloads the Vivante GPU userspace driver (imx-gpu-viv) and the Hantro VPU
 # userspace driver (imx-vpu-hantro) and stages them.
 #
@@ -14,8 +14,7 @@
 set -e
 . "$(dirname "$0")/common.sh"
 
-GPU_VIV_VERSION="6.4.11.p2.12"
-GPU_VIV_BIN="imx-gpu-viv-${GPU_VIV_VERSION}-aarch64-4402ac2.bin"
+GPU_VIV_BIN="imx-gpu-viv-6.4.11.p2.12-aarch64-4402ac2.bin"
 GPU_VIV_URL="https://www.nxp.com/lgfiles/NMG/MAD/YOCTO/${GPU_VIV_BIN}"
 GPU_VIV_CACHE="/work/build/firmware/${GPU_VIV_BIN}"
 
@@ -24,9 +23,14 @@ HANTRO_BIN="imx-vpu-hantro-${HANTRO_VERSION}.bin"
 HANTRO_URL="https://www.nxp.com/lgfiles/NMG/MAD/YOCTO/${HANTRO_BIN}"
 HANTRO_CACHE="/work/build/firmware/${HANTRO_BIN}"
 
+# Nuke any partial unpack from a previous crashed run.
+rm -rf \
+    "/work/build/firmware/imx-gpu-viv-${GPU_VIV_VERSION}-aarch64-unpack" \
+    "/work/build/firmware/imx-vpu-hantro-${HANTRO_VERSION}-unpack"
+
 # ── Download Vivante GPU driver ───────────────────────────────────────────────
 if [ ! -f "$GPU_VIV_CACHE" ]; then
-    echo "[04-vivante] Downloading imx-gpu-viv ${GPU_VIV_VERSION}..."
+    echo "[03-vivante] Downloading imx-gpu-viv ${GPU_VIV_VERSION}..."
     mkdir -p /work/build/firmware
     wget -O "$GPU_VIV_CACHE" "$GPU_VIV_URL"
 fi
@@ -34,7 +38,7 @@ fi
 # ── Unpack Vivante (cached) ───────────────────────────────────────────────────
 GPU_VIV_UNPACK="/work/build/firmware/imx-gpu-viv-${GPU_VIV_VERSION}-aarch64-unpack"
 if [ ! -d "$GPU_VIV_UNPACK" ]; then
-    echo "[04-vivante] Unpacking ${GPU_VIV_BIN}..."
+    echo "[03-vivante] Unpacking ${GPU_VIV_BIN}..."
     mkdir -p "$GPU_VIV_UNPACK"
     cd "$GPU_VIV_UNPACK"
     chmod +x "$GPU_VIV_CACHE"
@@ -47,7 +51,7 @@ if [ -z "$VIV_SRC" ]; then
     exit 1
 fi
 
-echo "[04-vivante] Installing Vivante GPU driver from ${VIV_SRC}..."
+echo "[03-vivante] Installing Vivante GPU driver from ${VIV_SRC}..."
 
 GPU_CORE="${VIV_SRC}/gpu-core"
 GPU_DEMOS="${VIV_SRC}/gpu-demos"
@@ -117,7 +121,7 @@ done
 
 # ── Download Hantro VPU driver ───────────────────────────────────────────────
 if [ ! -f "$HANTRO_CACHE" ]; then
-    echo "[04-vivante] Downloading imx-vpu-hantro ${HANTRO_VERSION}..."
+    echo "[03-vivante] Downloading imx-vpu-hantro ${HANTRO_VERSION}..."
     mkdir -p /work/build/firmware
     wget -O "$HANTRO_CACHE" "$HANTRO_URL"
 fi
@@ -125,7 +129,7 @@ fi
 # ── Unpack Hantro (cached) ────────────────────────────────────────────────────
 HANTRO_UNPACK="/work/build/firmware/imx-vpu-hantro-${HANTRO_VERSION}-unpack"
 if [ ! -d "$HANTRO_UNPACK" ]; then
-    echo "[04-vivante] Unpacking ${HANTRO_BIN}..."
+    echo "[03-vivante] Unpacking ${HANTRO_BIN}..."
     mkdir -p "$HANTRO_UNPACK"
     cd "$HANTRO_UNPACK"
     chmod +x "$HANTRO_CACHE"
@@ -138,7 +142,7 @@ if [ -z "$HANTRO_SRC" ]; then
     exit 1
 fi
 
-echo "[04-vivante] Installing Hantro VPU driver from ${HANTRO_SRC}..."
+echo "[03-vivante] Installing Hantro VPU driver from ${HANTRO_SRC}..."
 
 # Stage Hantro runtime libs (live at /usr/lib/, not /usr/lib/aarch64-linux-gnu/,
 # matching the working device extract).
@@ -148,6 +152,6 @@ if [ -d "$HANTRO_SRC/usr/lib" ]; then
     cp -a "$HANTRO_SRC/usr/lib"/lib*.so* "$CHROOT_DIR/usr/lib/"    2>/dev/null || true
 fi
 
-echo "[04-vivante] Vivante GPU driver ${GPU_VIV_VERSION} + Hantro ${HANTRO_VERSION} staged."
+echo "[03-vivante] Vivante GPU driver ${GPU_VIV_VERSION} + Hantro ${HANTRO_VERSION} staged."
 echo "  Runtime → $GALCORE_STAGE"
 echo "  Dev     → $CHROOT_DIR/usr/{include,lib/aarch64-linux-gnu/pkgconfig}"

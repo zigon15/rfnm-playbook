@@ -11,6 +11,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 from typing import Optional
+import yaml
 import questionary
 from questionary import Style
 
@@ -103,9 +104,9 @@ def ask_flash():
     flash_choice = questionary.select(
         'After building:',
         choices=[
-            questionary.Choice('Just build — no flashing',                             value='none'),
-            questionary.Choice('Flash SD   — everything on SD card',                   value='sd'),
-            questionary.Choice('Flash SD + USB — U-Boot on SD, kernel+rootfs on USB',  value='sd_usb'),
+            questionary.Choice('Just build - no flashing',                            value='none'),
+            questionary.Choice('Flash SD - everything on SD card',                      value='sd'),
+            questionary.Choice('Flash SD + USB - U-Boot on SD, kernel+rootfs on USB',   value='sd_usb'),
         ],
         style=STYLE,
     ).ask()
@@ -132,7 +133,8 @@ ROOTFS_STAGE_LABELS = {
     'weston': [
         (1, 'debootstrap base system'),
         (2, 'configure (packages, users, networking)'),
-        (4, 'download Vivante GPU + Hantro VPU'),
+        (3, 'download Vivante GPU + Hantro VPU'),
+        (4, 'compile GPU SDK (gtec-demo-framework)'),
         (5, 'compile weston-imx'),
         (6, 'merge + overlays (assemble final rootfs)'),
         (7, 'install kernel modules + NXP firmware'),
@@ -233,6 +235,72 @@ def ask_rfnm_options(default_include=True):
     if include:
         return include, ask_rfnm_load_on_startup(), ask_usb_a_mode()
     return include, False, 'device'
+
+
+# ── Last-build config save/load ───────────────────────────────────────────────
+
+def _script_dir():
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def config_path():
+    return os.path.join(_script_dir(), '.last_build_config.yaml')
+
+
+def save_build_config(cfg):
+    """Save non-flash build config fields to YAML."""
+    data = {
+        'steps': cfg.steps,
+        'rootfs_choice': cfg.rootfs_choice,
+        'rootfs_fresh': cfg.rootfs_fresh,
+        'rootfs_stages': cfg.rootfs_stages,
+        'include_rfnm_rootfs': cfg.include_rfnm_rootfs,
+        'rfnm_load_on_startup': cfg.rfnm_load_on_startup,
+        'usb_a_mode': cfg.usb_a_mode,
+    }
+    with open(config_path(), 'w') as f:
+        yaml.dump(data, f, default_flow_style=False)
+
+
+def load_build_config():
+    """Load last build config from YAML, or None if missing/corrupt."""
+    path = config_path()
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path) as f:
+            data = yaml.safe_load(f)
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    cfg = BuildConfig()
+    cfg.steps = data.get('steps', {k: False for k in cfg.steps})
+    cfg.rootfs_choice = data.get('rootfs_choice', 'weston')
+    cfg.rootfs_fresh = data.get('rootfs_fresh', False)
+    cfg.rootfs_stages = data.get('rootfs_stages', None)
+    cfg.include_rfnm_rootfs = data.get('include_rfnm_rootfs', False)
+    cfg.rfnm_load_on_startup = data.get('rfnm_load_on_startup', False)
+    cfg.usb_a_mode = data.get('usb_a_mode', 'device')
+    # Flash fields: never saved, always default to no-flash
+    cfg.flash_choice = 'none'
+    cfg.sd_device = None
+    cfg.usb_device = None
+    return cfg
+
+
+def ask_reuse_last():
+    """Ask whether to reuse the last build config."""
+    if not os.path.isfile(config_path()):
+        return None
+    answer = questionary.confirm(
+        'Build same as last time?',
+        default=True,
+        style=STYLE,
+    ).ask()
+    if answer is None:
+        sys.exit(1)
+    return answer
 
 
 # ── Build configuration ───────────────────────────────────────────────────────
@@ -436,9 +504,9 @@ ROOTFS_NAMES = {
 }
 
 ROOTFS_VARIANT_CHOICES = [
-    questionary.Choice('Weston   — Wayland compositor + Vivante GL', value='weston'),
-    questionary.Choice('Desktop  — KDE Plasma desktop  (broken)',    value='desktop'),
-    questionary.Choice('Base     — Headless',                        value='base'),
+    questionary.Choice('Weston - Wayland compositor + Vivante GL', value='weston'),
+    questionary.Choice('Desktop - KDE Plasma desktop (broken)',    value='desktop'),
+    questionary.Choice('Base - Headless',                          value='base'),
 ]
 
 
@@ -447,13 +515,24 @@ def main():
     print(f'{BOLD}{CYAN}║    RFNM Linux Build Configuration        ║{NC}')
     print(f'{BOLD}{CYAN}╚══════════════════════════════════════════╝{NC}\n')
 
+    # ── Reuse last build config? ───────────────────────────────────────────────
+    reuse = ask_reuse_last()
+    if reuse:
+        cfg = load_build_config()
+        if cfg is not None:
+            cfg.rootfs_script = ROOTFS_SCRIPTS[cfg.rootfs_choice]
+            cfg.rootfs_name   = ROOTFS_NAMES.get(cfg.rootfs_choice, cfg.rootfs_choice.replace('_', ' ').capitalize())
+            execute(cfg)
+            return
+        print('Saved config not found or corrupt — continuing with interactive setup.\n', flush=True)
+
     # ── Top-level action ───────────────────────────────────────────────────────
     action = questionary.select(
         'What do you want to do?',
         choices=[
-            questionary.Choice('Build             — compile only',                   value='build'),
-            questionary.Choice('Build and flash   — compile then flash',             value='build_flash'),
-            questionary.Choice('Flash             — flash pre-built artifacts now',  value='flash'),
+            questionary.Choice('Build - compile only',                          value='build'),
+            questionary.Choice('Build and flash - compile then flash',                value='build_flash'),
+            questionary.Choice('Flash - flash pre-built artifacts now',               value='flash'),
         ],
         style=STYLE,
     ).ask()
@@ -465,8 +544,8 @@ def main():
         flash_choice = questionary.select(
             'Flash target:',
             choices=[
-                questionary.Choice('Flash SD   — everything on SD card',                   value='sd'),
-                questionary.Choice('Flash SD + USB — U-Boot on SD, kernel+rootfs on USB',  value='sd_usb'),
+                questionary.Choice('Flash SD - everything on SD card',                      value='sd'),
+                questionary.Choice('Flash SD + USB - U-Boot on SD, kernel+rootfs on USB',   value='sd_usb'),
             ],
             style=STYLE,
         ).ask()
@@ -489,8 +568,8 @@ def main():
     mode = questionary.select(
         'Build mode:',
         choices=[
-            questionary.Choice('Full build — clone repos and build everything', value='full'),
-            questionary.Choice('Partial    — rebuild selected components only', value='partial'),
+            questionary.Choice('Full build - clone repos and build everything', value='full'),
+            questionary.Choice('Partial - rebuild selected components only', value='partial'),
         ],
         style=STYLE,
     ).ask()
@@ -551,8 +630,8 @@ def main():
             kernel_mode = questionary.select(
                 'Kernel build mode:',
                 choices=[
-                    questionary.Choice('Full build   — clean + build Image, DTBs + modules', value='full'),
-                    questionary.Choice('Device Tree  — build DTBs only (fast)',              value='dtbs'),
+                    questionary.Choice('Full build - clean + build Image, DTBs + modules', value='full'),
+                    questionary.Choice('Device Tree - build DTBs only (fast)',              value='dtbs'),
                 ],
                 default='full',
                 style=STYLE,
@@ -636,6 +715,7 @@ def main():
     cfg.rootfs_script = ROOTFS_SCRIPTS[cfg.rootfs_choice]
     cfg.rootfs_name   = ROOTFS_NAMES.get(cfg.rootfs_choice, cfg.rootfs_choice.replace('_', ' ').capitalize())
 
+    save_build_config(cfg)
     execute(cfg)
 
 

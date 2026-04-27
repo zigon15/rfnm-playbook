@@ -3,7 +3,7 @@
 # Builds weston-imx from source inside the arm64 chroot (QEMU emulation) and
 # stages the installed artifacts to $WESTON_STAGE via meson DESTDIR.
 #
-# Requires 04-vivante.sh to have run first (Vivante headers + pkg-config must
+# Requires 03-vivante.sh to have run first (Vivante headers + pkg-config must
 # be present in $CHROOT_DIR/usr/).
 #
 # https://layers.openembedded.org/layerindex/recipe/402089/
@@ -14,6 +14,13 @@ if [ ! -x "$CHROOT_DIR/bin/sh" ]; then
     echo "Error: $CHROOT_DIR is not bootstrapped. Run stages 01–02 first."
     exit 1
 fi
+
+rm -rf \
+    "$CHROOT_DIR/tmp/weston-imx-src" \
+    "$CHROOT_DIR/tmp/wayland-protocols-imx-src" \
+    "$CHROOT_DIR/tmp/wp-imx-build" \
+    "$CHROOT_DIR/tmp/weston-imx-build" \
+    "$CHROOT_DIR/tmp/weston-stage"
 
 WESTON_REPO='https://github.com/nxp-imx/weston-imx.git'
 WESTON_BRANCH='weston-imx-12.0.5'
@@ -109,7 +116,7 @@ rm -rf /tmp/wayland-protocols-imx-src /tmp/wp-imx-build
 
 # Configure weston-imx.
 # Vivante EGL/GLES/GBM .pc files are in /usr/lib/aarch64-linux-gnu/pkgconfig
-# (installed by 04-vivante.sh), so no PKG_CONFIG_PATH override is needed.
+# (installed by 03-vivante.sh), so no PKG_CONFIG_PATH override is needed.
 # Do NOT install libegl-dev / libgles2-dev / libgbm-dev — Vivante .pc files
 # take priority and Mesa's would conflict.
 rm -rf /tmp/weston-imx-build

@@ -4,7 +4,8 @@
 # Stages:
 #   1 — debootstrap      (base Debian rootfs in debian-build/)
 #   2 — configure        (packages, users, networking)
-#   4 — vivante          (download Vivante GPU + Hantro VPU userspace → debian-stages/galcore/)
+#   3 — vivante          (download Vivante GPU + Hantro VPU userspace → debian-stages/galcore/)
+#   4 — gpu-sdk          (build gtec-demo-framework → debian-stages/gpu-sdk/opt/imx-gpu-sdk)
 #   5 — weston           (compile weston-imx   → debian-stages/weston/)
 #   6 — merge+overlays   (apply overlays, wipe debian/, copy chroot + vivante + weston, ldconfig)
 #   7 — kernel-modules   (install .ko files + NXP firmware into debian/)
@@ -14,14 +15,14 @@
 #   ./buildWeston_GalcoreGPU.sh
 #
 # Run a specific subset of stages:
-#   STAGES="4 6"   ./buildWeston_GalcoreGPU.sh   # vivante + merge
+#   STAGES="3 6"   ./buildWeston_GalcoreGPU.sh   # vivante + merge
 #   STAGES="7 8"   ./buildWeston_GalcoreGPU.sh   # re-install modules only
 #   STAGES="6"     ./buildWeston_GalcoreGPU.sh   # just merge
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/stages/common.sh"
-STAGES="${STAGES:-1 2 4 5 6 7 8}"
+STAGES="${STAGES:-1 2 3 4 5 6 7 8}"
 
 should_run() {
     num=$1
@@ -46,7 +47,8 @@ run_stage() {
 
 run_stage 1 01-debootstrap.sh
 run_stage 2 02-configure.sh
-run_stage 4 04-vivante.sh
+run_stage 3 03-vivante.sh
+run_stage 4 04-gpu-sdk.sh
 run_stage 5 05-weston.sh
 
 # ── Stage 6: merge + overlays ─────────────────────────────────────────────────
@@ -72,11 +74,15 @@ if should_run 6; then
         fi
     done
     if [ ! -d "$GALCORE_STAGE" ]; then
-        echo "Error: $GALCORE_STAGE not found — run stage 4 (vivante) first."
+        echo "Error: $GALCORE_STAGE not found — run stage 3 (vivante) first."
         exit 1
     fi
     if [ ! -d "$WESTON_STAGE" ]; then
         echo "Error: $WESTON_STAGE not found — run stage 5 (weston) first."
+        exit 1
+    fi
+    if [ ! -d "$GPU_SDK_STAGE" ]; then
+        echo "Error: $GPU_SDK_STAGE not found — run stage 4 (gpu-sdk) first."
         exit 1
     fi
 
@@ -92,6 +98,9 @@ if should_run 6; then
 
     echo "Merging weston stage ($WESTON_STAGE)..."
     cp -a "$WESTON_STAGE/." "$BUILD_DIR/"
+
+    echo "Merging GPU SDK stage ($GPU_SDK_STAGE)..."
+    cp -a "$GPU_SDK_STAGE/." "$BUILD_DIR/"
 
     ln -sf libGLESv2.so.2.0.0 \
         "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2"
