@@ -2,6 +2,6 @@
 Name=end*
 
 [Network]
-Address=192.168.20.220/24
-Gateway=192.168.20.1
+Address=192.168.68.220/24
+Gateway=192.168.68.1
 DNS=1.1.1.1

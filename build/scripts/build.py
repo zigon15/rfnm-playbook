@@ -592,6 +592,18 @@ def main():
                 )
             cfg.rootfs_script = ROOTFS_SCRIPTS[cfg.rootfs_choice]
             cfg.rootfs_name   = ROOTFS_NAMES.get(cfg.rootfs_choice, cfg.rootfs_choice.replace('_', ' ').capitalize())
+            if cfg.steps.get('kernel'):
+                echo_prompt_section('Kernel')
+                cfg.kernel_clean = ask_clean_kernel(
+                    default=cfg.kernel_clean,
+                    qmark=SECTION_QMARK,
+                )
+            if cfg.steps.get('rootfs'):
+                echo_prompt_section('Rootfs')
+                cfg.rootfs_fresh = ask_clean_rootfs(
+                    default=not cfg.rootfs_stages,
+                    qmark=SECTION_QMARK,
+                )
             execute(cfg)
             return
         print('Saved config not found or corrupt — continuing with interactive setup.\n', flush=True)

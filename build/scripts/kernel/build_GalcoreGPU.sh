@@ -1,7 +1,18 @@
 #!/bin/sh
+set -e
 
 #---- Build Kernel (Galcore / Vivante GPU) ----#
+JOBS="${JOBS:-$(nproc)}"
+BUILD_ERROR_LOG="/work/build/kernel-errors.log"
+
+: > "$BUILD_ERROR_LOG"
+echo "[build_GalcoreGPU] Writing errors to $BUILD_ERROR_LOG"
+exec 2>> "$BUILD_ERROR_LOG"
+
 cd /work/build/imx8mp-kernel/
+
+# clean.sh removes untracked overlay files, including the RFNM defconfig.
+/work/scripts/kernel/apply-rfnm-overlay.sh
 
 # Make config for i.MX8M
 make imx8mp_rfnm_defconfig
@@ -26,6 +37,8 @@ scripts/config --enable CONFIG_DRM_IMX_HDMI
 # HDMI
 scripts/config --module CONFIG_DRM_DW_HDMI
 scripts/config --module CONFIG_DRM_DW_HDMI_CEC
+scripts/config --enable CONFIG_DRM_CDNS_HDMI_CEC
+scripts/config --enable CONFIG_PHY_FSL_SAMSUNG_HDMI_PHY
 
 # Memory
 scripts/config --enable CONFIG_CMA
@@ -53,18 +66,28 @@ scripts/config --disable CONFIG_DRM_SIMPLEDRM
 scripts/config --enable CONFIG_NAMESPACES
 scripts/config --enable CONFIG_USER_NS
 
-# Disable aggressive stack zeroing that causes USB buffer allocation failures
-# Must disable ZERO and enable NONE to properly set choice block
-scripts/config --disable CONFIG_INIT_STACK_ALL_ZERO
-scripts/config --enable CONFIG_INIT_STACK_NONE
+# Root filesystem support. flashSD.sh formats partition 2 as ext4, so ext4 must
+# be built into the kernel rather than left unset or modular.
+scripts/config --enable CONFIG_EXT4_FS
+scripts/config --enable CONFIG_EXT4_FS_POSIX_ACL
 
 # Apply config changes
 make olddefconfig
 
 # Build the kernel Image and Device Trees
-make -j$(nproc) Image dtbs
+make -j"$JOBS" Image dtbs
+
+if [ ! -f arch/arm64/boot/Image ]; then
+	echo "Error: kernel Image was not produced." >&2
+	exit 1
+fi
+
+if [ ! -f arch/arm64/boot/dts/freescale/imx8mp-rfnm.dtb ]; then
+	echo "Error: RFNM device tree was not produced." >&2
+	exit 1
+fi
 
 # Build the kernel modules
 # modules_prepare must run before external modules can be compiled against this tree
 make modules_prepare
-make -j$(nproc) modules
+make -j"$JOBS" modules

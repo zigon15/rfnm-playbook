@@ -4,7 +4,7 @@ set -e
 
 # #-- Apply required patches
 cd /work/build/imx8mp-kernel
-git apply /work/scripts/patches/imx8mp-kernel.patch
+/work/scripts/kernel/apply-rfnm-overlay.sh
 
 cd /work/build/imx8mp-uboot
 git apply /work/scripts/patches/imx8mp-uboot.patch

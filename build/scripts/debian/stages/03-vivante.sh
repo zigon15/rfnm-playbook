@@ -14,7 +14,8 @@
 set -e
 . "$(dirname "$0")/common.sh"
 
-GPU_VIV_BIN="imx-gpu-viv-6.4.11.p2.12-aarch64-4402ac2.bin"
+GPU_VIV_VERSION="6.4.11.p2.12"
+GPU_VIV_BIN="imx-gpu-viv-${GPU_VIV_VERSION}-aarch64-4402ac2.bin"
 GPU_VIV_URL="https://www.nxp.com/lgfiles/NMG/MAD/YOCTO/${GPU_VIV_BIN}"
 GPU_VIV_CACHE="/work/build/firmware/${GPU_VIV_BIN}"
 

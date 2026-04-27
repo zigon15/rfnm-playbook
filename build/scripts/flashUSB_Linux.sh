@@ -35,7 +35,7 @@ DTB_FILE="${KERNEL_ROOT}/arch/arm64/boot/dts/freescale/imx8mp-rfnm.dtb"
 for file in "$KERNEL_IMAGE" "$DTB_FILE"; do
     if [ ! -f "$file" ]; then
         echo "Error: File not found -> $file"
-        echo "Please fix the paths in the script variables."
+        echo "Build or rebuild the missing artifact before flashing."
         exit 1
     fi
 done

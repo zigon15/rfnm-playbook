@@ -27,7 +27,7 @@ WESTON_BRANCH='weston-imx-12.0.5'
 WESTON_SRC='/work/build/weston-imx-src'
 
 WP_IMX_REPO='https://github.com/nxp-imx/wayland-protocols-imx.git'
-WP_IMX_TAG='lf-6.6.36-2.1.0'
+WP_IMX_TAG='lf-6.12.49-2.2.0'
 WP_IMX_SRC='/work/build/wayland-protocols-imx-src'
 
 # ── Clone on host (fast native git, cached) ───────────────────────────────────
