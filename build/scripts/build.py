@@ -131,71 +131,50 @@ def ask_flash():
 # here fall back to a simple fresh/skip-clean choice.
 ROOTFS_STAGE_LABELS = {
     'weston': [
-        (1, 'debootstrap base system'),
-        (2, 'configure (packages, users, networking)'),
-        (3, 'download Vivante GPU + Hantro VPU'),
-        (4, 'compile GPU SDK (gtec-demo-framework)'),
-        (5, 'compile weston-imx'),
-        (6, 'merge + overlays (assemble final rootfs)'),
-        (7, 'install kernel modules + NXP firmware'),
+        (1, 'debootstrap + configure base system'),
+        (2, 'download Vivante GPU + Hantro VPU'),
+        (3, 'compile weston-imx'),
+        (4, 'run optional stages'),
+        (5, 'merge + overlays (assemble final rootfs)'),
+        (6, 'install kernel modules + NXP firmware'),
     ],
+}
+
+OPTIONAL_STAGE_LABELS = {
+    'weston': [('gpu-sdk', 'compile GPU SDK (gtec-demo-framework)')],
 }
 
 
 def ask_rootfs_build_mode(rootfs_choice):
-    """Ask how to build the rootfs. Returns (fresh: bool, stages: list[int]|None).
+    """Ask which rootfs stages to run. Returns (fresh: bool, stages: list[int]|None, optionals: list[str]).
 
-    stages=None means run all stages (default). A list means run only those
-    numbered stages; the shell script receives them as STAGES="1 2 3 …".
+    stages=None means run all stages (used for non-staged variants).
+    fresh is always False — repos step handles top-level clean.
     """
     stage_defs = ROOTFS_STAGE_LABELS.get(rootfs_choice)
 
     if stage_defs is None:
-        # Variant doesn't yet support staged builds.
-        mode = questionary.select(
-            'Rootfs build mode:',
-            choices=[
-                questionary.Choice('Build from scratch  (wipes build dirs first)', value='fresh'),
-                questionary.Choice('Skip clean  (reuse existing build dir)',        value='skip'),
-            ],
-            style=STYLE,
-        ).ask()
-        if mode is None:
-            sys.exit(1)
-        return (mode == 'fresh'), None
+        return False, None, []
 
-    mode = questionary.select(
-        'Rootfs build mode:',
-        choices=[
-            questionary.Choice('Build from scratch  (wipes build dirs first)', value='fresh'),
-            questionary.Choice('Select stages to run',                          value='select'),
-        ],
-        style=STYLE,
-    ).ask()
-    if mode is None:
-        sys.exit(1)
-    if mode == 'fresh':
-        return True, None
+    # Stages 4 (optionals runner), 5 (merge), 6 (kernel-modules) always run.
+    checkbox_stages = [(n, lbl) for n, lbl in stage_defs if n not in (4, 5, 6)]
+    optional_defs = OPTIONAL_STAGE_LABELS.get(rootfs_choice, [])
 
-    # Stages 6 (merge) and 7 (kernel-modules) always run — hide from checkbox.
-    checkbox_stages = [(n, lbl) for n, lbl in stage_defs if n not in (6, 7)]
-    choices = [
-        questionary.Choice(f'{n} — {label}', value=n, checked=True)
-        for n, label in checkbox_stages
-    ]
+    choices = [questionary.Choice(f'{n} — {label}', value=n, checked=True) for n, label in checkbox_stages]
+    for key, label in optional_defs:
+        choices.append(questionary.Choice(label, value=key, checked=False))
+
     selected = questionary.checkbox(
-        'Stages to run:',
+        'Rootfs stages to run:',
         choices=choices,
         style=STYLE,
     ).ask()
     if selected is None:
         sys.exit(1)
 
-    # Stages 6 (merge) and 7 (kernel-modules) always run after the selected
-    # build stages. Return the full list explicitly (never None) so the RFNM
-    # policy in the caller can decide whether to add stage 8.
-    selected = sorted(set(selected) | {6, 7})
-    return False, selected
+    mandatory = sorted(set(n for n in selected if isinstance(n, int)) | {4, 5, 6})
+    optionals = [s for s in selected if isinstance(s, str)]
+    return False, mandatory, optionals
 
 
 def ask_include_rfnm_support(default=True):
@@ -254,6 +233,7 @@ def save_build_config(cfg):
         'rootfs_choice': cfg.rootfs_choice,
         'rootfs_fresh': cfg.rootfs_fresh,
         'rootfs_stages': cfg.rootfs_stages,
+        'selected_optionals': cfg.selected_optionals,
         'include_rfnm_rootfs': cfg.include_rfnm_rootfs,
         'rfnm_load_on_startup': cfg.rfnm_load_on_startup,
         'usb_a_mode': cfg.usb_a_mode,
@@ -279,6 +259,7 @@ def load_build_config():
     cfg.rootfs_choice = data.get('rootfs_choice', 'weston')
     cfg.rootfs_fresh = data.get('rootfs_fresh', False)
     cfg.rootfs_stages = data.get('rootfs_stages', None)
+    cfg.selected_optionals = data.get('selected_optionals', [])
     cfg.include_rfnm_rootfs = data.get('include_rfnm_rootfs', False)
     cfg.rfnm_load_on_startup = data.get('rfnm_load_on_startup', False)
     cfg.usb_a_mode = data.get('usb_a_mode', 'device')
@@ -316,6 +297,7 @@ class BuildConfig:
     rootfs_name: str = 'Base'
     rootfs_fresh: bool = False
     rootfs_stages: Optional[list] = None
+    selected_optionals: list = field(default_factory=list)
     include_rfnm_rootfs: bool = False
     rfnm_load_on_startup: bool = False
     usb_a_mode: str = 'device'
@@ -335,10 +317,13 @@ def print_build_summary(title, cfg, elapsed_seconds=None):
 
     # Build stage state list for weston variant
     stage_states = []
+    optional_states = []
     if rootfs_selected and cfg.rootfs_choice == 'weston':
         stage_defs = ROOTFS_STAGE_LABELS['weston']
         run_set = {n for n, _ in stage_defs} if cfg.rootfs_stages is None else set(cfg.rootfs_stages)
         stage_states = [(n, label, n in run_set) for n, label in stage_defs]
+        optional_defs = OPTIONAL_STAGE_LABELS.get(cfg.rootfs_choice, [])
+        optional_states = [(key, label, key in cfg.selected_optionals) for key, label in optional_defs]
 
     # Rootfs mode label
     if cfg.rootfs_stages is not None:
@@ -364,8 +349,10 @@ def print_build_summary(title, cfg, elapsed_seconds=None):
         print(f'   Mode: {mode_label}')
         for num, label, ran in stage_states:
             print(f'   {status_icon(ran)} Stage {num} — {label}')
+        for key, label, ran in optional_states:
+            print(f'   {status_icon(ran)} {label} (optional)')
         if cfg.include_rfnm_rootfs:
-            print(f'   {status_icon(True)} Stage 8 — install RFNM LA9310 driver + firmware')
+            print(f'   {status_icon(True)} Stage 7 — install RFNM LA9310 driver + firmware')
             print(f'      USB-A mode: {cfg.usb_a_mode}')
             print(f'      Load on startup: {"yes" if cfg.rfnm_load_on_startup else "no"}')
     else:
@@ -458,11 +445,12 @@ def execute(cfg):
             cmd_parts.append('./clean.sh')
         rfnm_support = '1' if cfg.include_rfnm_rootfs else '0'
         rfnm_load = '1' if cfg.rfnm_load_on_startup else '0'
+        optional_str = ' '.join(cfg.selected_optionals)
         if cfg.rootfs_stages is not None:
             stages_str = ' '.join(str(s) for s in cfg.rootfs_stages)
-            cmd_parts.append(f'RFNM_SUPPORT="{rfnm_support}" RFNM_LOAD_ON_STARTUP="{rfnm_load}" USB_A_MODE="{cfg.usb_a_mode}" STAGES="{stages_str}" ./{cfg.rootfs_script}')
+            cmd_parts.append(f'RFNM_SUPPORT="{rfnm_support}" RFNM_LOAD_ON_STARTUP="{rfnm_load}" USB_A_MODE="{cfg.usb_a_mode}" OPTIONAL_STAGES="{optional_str}" STAGES="{stages_str}" ./{cfg.rootfs_script}')
         else:
-            cmd_parts.append(f'RFNM_SUPPORT="{rfnm_support}" RFNM_LOAD_ON_STARTUP="{rfnm_load}" USB_A_MODE="{cfg.usb_a_mode}" ./{cfg.rootfs_script}')
+            cmd_parts.append(f'RFNM_SUPPORT="{rfnm_support}" RFNM_LOAD_ON_STARTUP="{rfnm_load}" USB_A_MODE="{cfg.usb_a_mode}" OPTIONAL_STAGES="{optional_str}" ./{cfg.rootfs_script}')
         run_step(f'Building Debian Rootfs  ({cfg.rootfs_name})', '\n'.join(cmd_parts))
 
     # Flash steps
@@ -564,20 +552,45 @@ def main():
         execute(cfg)
         return
 
-    # ── Build mode ─────────────────────────────────────────────────────────────
-    mode = questionary.select(
-        'Build mode:',
+    # ── Component selection ─────────────────────────────────────────────────────
+    selected = questionary.checkbox(
+        'Select components to rebuild:',
         choices=[
-            questionary.Choice('Full build - clone repos and build everything', value='full'),
-            questionary.Choice('Partial - rebuild selected components only', value='partial'),
+            questionary.Choice('Prepare repos (clone + firmware + apply patches)', value='repos',        checked=True),
+            questionary.Choice('U-Boot + ATF',                                    value='uboot',        checked=True),
+            questionary.Choice('Linux Kernel',                                    value='kernel',       checked=True),
+            questionary.Choice('LA9310 RTOS Firmware',                            value='la9310_rtos',  checked=True),
+            questionary.Choice('LA9310 Kernel Driver',                            value='la9310_driver',checked=True),
+            questionary.Choice('Debian Rootfs',                                   value='rootfs',       checked=True),
         ],
         style=STYLE,
     ).ask()
-    if mode is None:
+    if selected is None:
         sys.exit(1)
+    if not selected:
+        print('Nothing selected — exiting.')
+        sys.exit(0)
 
-    # ── Full build ─────────────────────────────────────────────────────────────
-    if mode == 'full':
+    kernel_mode = 'full'
+    if 'kernel' in selected:
+        kernel_mode = questionary.select(
+            'Kernel build mode:',
+            choices=[
+                questionary.Choice('Full build - clean + build Image, DTBs + modules', value='full'),
+                questionary.Choice('Device Tree - build DTBs only (fast)',              value='dtbs'),
+            ],
+            default='full',
+            style=STYLE,
+        ).ask()
+        if kernel_mode is None:
+            sys.exit(1)
+        if kernel_mode == 'dtbs':
+            selected.remove('kernel')
+            selected.append('dtbs')
+
+    needs_deploy = any(c in selected for c in ('kernel', 'dtbs', 'la9310_rtos', 'la9310_driver')) and 'rootfs' not in selected
+
+    if 'rootfs' in selected:
         rootfs_choice = questionary.select(
             'Rootfs variant:',
             choices=ROOTFS_VARIANT_CHOICES,
@@ -586,131 +599,67 @@ def main():
         if rootfs_choice is None:
             sys.exit(1)
 
-        include_rfnm, rfnm_load, usb_a = ask_rfnm_options(default_include=True)
+        include_rfnm, rfnm_load, usb_a = ask_rfnm_options()
+        rootfs_fresh, rootfs_stages, selected_optionals = ask_rootfs_build_mode(rootfs_choice)
 
-        cfg = BuildConfig(
-            steps={
-                'repos':         True,
-                'uboot':         True,
-                'kernel':        True,
-                'la9310_rtos':   include_rfnm,
-                'la9310_driver': include_rfnm,
-                'rootfs':        True,
-            },
-            rootfs_choice=rootfs_choice,
-            rootfs_fresh=True,
-            rootfs_stages=None,
-            include_rfnm_rootfs=include_rfnm,
-            rfnm_load_on_startup=rfnm_load,
-            usb_a_mode=usb_a,
-        )
+        # Add stage 7 for RFNM when specific stages are selected
+        if rootfs_choice == 'weston' and rootfs_stages is not None and include_rfnm and 7 not in rootfs_stages:
+            rootfs_stages = sorted(rootfs_stages + [7])
 
-    # ── Partial rebuild ────────────────────────────────────────────────────────
-    else:
-        selected = questionary.checkbox(
-            'Select components to rebuild:',
-            choices=[
-                questionary.Choice('Prepare repos (clone + firmware + apply patches)', value='repos'),
-                questionary.Choice('U-Boot + ATF',         value='uboot'),
-                questionary.Choice('Linux Kernel',         value='kernel'),
-                questionary.Choice('LA9310 RTOS Firmware', value='la9310_rtos'),
-                questionary.Choice('LA9310 Kernel Driver', value='la9310_driver'),
-                questionary.Choice('Debian Rootfs',        value='rootfs'),
-            ],
+    elif needs_deploy:
+        rootfs_choice = questionary.select(
+            'Rootfs variant (for artifact deployment):',
+            choices=ROOTFS_VARIANT_CHOICES,
             style=STYLE,
         ).ask()
-        if selected is None:
+        if rootfs_choice is None:
             sys.exit(1)
-        if not selected:
-            print('Nothing selected — exiting.')
-            sys.exit(0)
 
-        kernel_mode = 'full'
-        if 'kernel' in selected:
-            kernel_mode = questionary.select(
-                'Kernel build mode:',
-                choices=[
-                    questionary.Choice('Full build - clean + build Image, DTBs + modules', value='full'),
-                    questionary.Choice('Device Tree - build DTBs only (fast)',              value='dtbs'),
-                ],
-                default='full',
-                style=STYLE,
-            ).ask()
-            if kernel_mode is None:
-                sys.exit(1)
-            if kernel_mode == 'dtbs':
-                selected.remove('kernel')
-                selected.append('dtbs')
+        include_rfnm, rfnm_load, usb_a = ask_rfnm_options()
 
-        needs_deploy = any(c in selected for c in ('kernel', 'dtbs', 'la9310_rtos', 'la9310_driver')) and 'rootfs' not in selected
+        rootfs_fresh = False
+        rootfs_stages = [5, 6]
+        selected_optionals = []
+        if include_rfnm:
+            rootfs_stages.append(7)
 
-        if 'rootfs' in selected:
-            rootfs_choice = questionary.select(
-                'Rootfs variant:',
-                choices=ROOTFS_VARIANT_CHOICES,
-                style=STYLE,
-            ).ask()
-            if rootfs_choice is None:
-                sys.exit(1)
+    else:
+        rootfs_choice = 'weston'
+        include_rfnm = False
+        rfnm_load = False
+        usb_a = 'device'
+        rootfs_fresh = False
+        rootfs_stages = None
+        selected_optionals = []
 
-            include_rfnm, rfnm_load, usb_a = ask_rfnm_options()
-            rootfs_fresh, rootfs_stages = ask_rootfs_build_mode(rootfs_choice)
+    steps = {k: k in selected for k in
+             ('repos', 'uboot', 'kernel', 'dtbs', 'la9310_rtos', 'la9310_driver', 'rootfs')}
+    if needs_deploy:
+        steps['rootfs'] = True
 
-            # Add stage 8 for RFNM when specific stages are selected
-            if rootfs_choice == 'weston' and rootfs_stages is not None and include_rfnm and 8 not in rootfs_stages:
-                rootfs_stages = sorted(rootfs_stages + [8])
+    cfg = BuildConfig(
+        steps=steps,
+        rootfs_choice=rootfs_choice,
+        rootfs_fresh=rootfs_fresh,
+        rootfs_stages=rootfs_stages,
+        selected_optionals=selected_optionals,
+        include_rfnm_rootfs=include_rfnm,
+        rfnm_load_on_startup=rfnm_load,
+        usb_a_mode=usb_a,
+    )
 
-        elif needs_deploy:
-            rootfs_choice = questionary.select(
-                'Rootfs variant (for artifact deployment):',
-                choices=ROOTFS_VARIANT_CHOICES,
-                style=STYLE,
-            ).ask()
-            if rootfs_choice is None:
-                sys.exit(1)
-
-            include_rfnm, rfnm_load, usb_a = ask_rfnm_options()
-
-            rootfs_fresh = False
-            rootfs_stages = [6, 7]
-            if include_rfnm:
-                rootfs_stages.append(8)
-
-        else:
-            rootfs_choice = 'weston'
-            include_rfnm = False
-            rfnm_load = False
-            usb_a = 'device'
-            rootfs_fresh = False
-            rootfs_stages = None
-
-        steps = {k: k in selected for k in
-                 ('repos', 'uboot', 'kernel', 'dtbs', 'la9310_rtos', 'la9310_driver', 'rootfs')}
-        if needs_deploy:
-            steps['rootfs'] = True
-
-        cfg = BuildConfig(
-            steps=steps,
-            rootfs_choice=rootfs_choice,
-            rootfs_fresh=rootfs_fresh,
-            rootfs_stages=rootfs_stages,
-            include_rfnm_rootfs=include_rfnm,
-            rfnm_load_on_startup=rfnm_load,
-            usb_a_mode=usb_a,
-        )
-
-    # ── Shared post-processing (both full and partial) ─────────────────────────
+    # ── Shared post-processing ─────────────────────────────────────────────────
     if action == 'build_flash':
         flash_choice, sd_device, usb_device = ask_flash()
         cfg.flash_choice = flash_choice
         cfg.sd_device = sd_device
         cfg.usb_device = usb_device
 
-    # Ensure stage 7 (kernel modules) is present when flashing
+    # Ensure stage 6 (kernel modules) is present when flashing
     if cfg.flash_choice != 'none' and cfg.rootfs_stages is not None and cfg.rootfs_choice == 'weston':
-        if 7 not in cfg.rootfs_stages:
-            cfg.rootfs_stages = sorted(cfg.rootfs_stages + [7])
-            print(f'Note: flashing selected; auto-adding rootfs stage 7.', flush=True)
+        if 6 not in cfg.rootfs_stages:
+            cfg.rootfs_stages = sorted(cfg.rootfs_stages + [6])
+            print(f'Note: flashing selected; auto-adding rootfs stage 6.', flush=True)
 
     cfg.rootfs_script = ROOTFS_SCRIPTS[cfg.rootfs_choice]
     cfg.rootfs_name   = ROOTFS_NAMES.get(cfg.rootfs_choice, cfg.rootfs_choice.replace('_', ' ').capitalize())

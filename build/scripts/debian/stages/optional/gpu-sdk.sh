@@ -5,7 +5,7 @@
 # Requires stage 03 (vivante) to have run first — Vivante headers, libs,
 # and pkg-config must be present in $CHROOT_DIR.
 set -e
-. "$(dirname "$0")/common.sh"
+. "$(dirname "$0")/../common.sh"
 
 rm -rf \
     "$CHROOT_DIR/tmp/gtec-demo-framework" \
@@ -88,8 +88,8 @@ export CFLAGS="${CFLAGS} -Wno-error=free-nonheap-object -Wno-error=array-bounds 
 export CXXFLAGS="${CXXFLAGS} -Wno-error=free-nonheap-object -Wno-error=array-bounds -Wno-error=dangling-reference"
 
 FslBuild.py -t sdk \
-    --UseFeatures [EGL,OpenGLES2,OpenGLES3,OpenVG,G2D] \
-    --Variants [WindowSystem=Wayland] \
+    --UseFeatures [ConsoleHost,WindowHost,EGL,OpenGLES2,OpenGLES3,OpenVG,G2D] \
+    --Variants [WindowSystem=X11] \
     --BuildThreads $(nproc) \
     -c build \
     --ForceClaimInstallArea
