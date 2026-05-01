@@ -14,8 +14,8 @@
 set -e
 . "$(dirname "$0")/common.sh"
 
-GPU_VIV_VERSION="6.4.11.p2.12"
-GPU_VIV_BIN="imx-gpu-viv-${GPU_VIV_VERSION}-aarch64-4402ac2.bin"
+GPU_VIV_VERSION="6.4.11.p4.4-aarch64-8626797"
+GPU_VIV_BIN="imx-gpu-viv-${GPU_VIV_VERSION}.bin"
 GPU_VIV_URL="https://www.nxp.com/lgfiles/NMG/MAD/YOCTO/${GPU_VIV_BIN}"
 GPU_VIV_CACHE="/work/build/firmware/${GPU_VIV_BIN}"
 
@@ -26,7 +26,7 @@ HANTRO_CACHE="/work/build/firmware/${HANTRO_BIN}"
 
 # Nuke any partial unpack from a previous crashed run.
 rm -rf \
-    "/work/build/firmware/imx-gpu-viv-${GPU_VIV_VERSION}-aarch64-unpack" \
+    "/work/build/firmware/imx-gpu-viv-${GPU_VIV_VERSION}-unpack" \
     "/work/build/firmware/imx-vpu-hantro-${HANTRO_VERSION}-unpack"
 
 # ── Download Vivante GPU driver ───────────────────────────────────────────────
@@ -37,7 +37,7 @@ if [ ! -f "$GPU_VIV_CACHE" ]; then
 fi
 
 # ── Unpack Vivante (cached) ───────────────────────────────────────────────────
-GPU_VIV_UNPACK="/work/build/firmware/imx-gpu-viv-${GPU_VIV_VERSION}-aarch64-unpack"
+GPU_VIV_UNPACK="/work/build/firmware/imx-gpu-viv-${GPU_VIV_VERSION}-unpack"
 if [ ! -d "$GPU_VIV_UNPACK" ]; then
     echo "[03-vivante] Unpacking ${GPU_VIV_BIN}..."
     mkdir -p "$GPU_VIV_UNPACK"

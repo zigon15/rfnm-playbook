@@ -22,7 +22,7 @@ FIRMWARE_DEST="$ABS_OUTPUT_DIR/lib/firmware/imx"
 #---- Install Kernel Modules to Debian Root Filesystem ----#
 echo "Installing modules to: $ABS_OUTPUT_DIR"
 
-cd /work/build/imx8mp-kernel/
+cd /work/kernel/
 make \
     ARCH=arm64 \
     CROSS_COMPILE=aarch64-linux-gnu- \

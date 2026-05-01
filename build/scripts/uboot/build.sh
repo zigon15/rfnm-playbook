@@ -13,7 +13,7 @@ cp /work/build/firmware/firmware-imx-8.16/firmware/ddr/synopsys/lpddr4*.bin "$UB
 cp /work/build/imx-atf/build/imx8mp/release/bl31.bin "$UBOOT_ROOT"
 
 #- RFNM shared header
-cp /work/build/imx8mp-kernel/include/linux/rfnm-*.h "$UBOOT_ROOT/include/linux/"
+cp /work/kernel/include/linux/rfnm-*.h "$UBOOT_ROOT/include/linux/"
 
 #---- Build uBoot ----#
 cd "$UBOOT_ROOT"

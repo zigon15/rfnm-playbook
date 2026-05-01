@@ -23,7 +23,7 @@ rm -rf \
     "$CHROOT_DIR/tmp/weston-stage"
 
 WESTON_REPO='https://github.com/nxp-imx/weston-imx.git'
-WESTON_BRANCH='weston-imx-12.0.5'
+WESTON_BRANCH='weston-imx-14.0.2'
 WESTON_SRC='/work/build/weston-imx-src'
 
 WP_IMX_REPO='https://github.com/nxp-imx/wayland-protocols-imx.git'
@@ -93,7 +93,7 @@ CHROOT_DEPS
 # Debian's libdrm-dev is missing NXP-specific DRM format modifiers
 # (DRM_FORMAT_MOD_AMPHION_TILED, DRM_FORMAT_MOD_VIVANTE_SUPER_TILED_FC).
 # Must run after apt-get above, which would otherwise overwrite this file.
-NXP_FOURCC='/work/build/imx8mp-kernel/include/uapi/drm/drm_fourcc.h'
+NXP_FOURCC='/work/kernel/include/uapi/drm/drm_fourcc.h'
 if [ -f "$NXP_FOURCC" ]; then
     echo "[05-weston] Patching chroot libdrm headers with NXP kernel version..."
     cp "$NXP_FOURCC" "$CHROOT_DIR/usr/include/libdrm/drm_fourcc.h"

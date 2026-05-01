@@ -2,7 +2,7 @@
 
 #---- PATHS (Adjust these to match your actual build paths) ----#
 UBOOT_ROOT="/work/build/imx8mp-uboot"
-KERNEL_ROOT="/work/build/imx8mp-kernel"
+KERNEL_ROOT="/work/kernel"
 DEBIAN_ROOT_FS="/work/build/debian"
 
 # Image configuration

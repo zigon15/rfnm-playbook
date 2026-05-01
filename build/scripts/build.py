@@ -592,18 +592,14 @@ def main():
                 )
             cfg.rootfs_script = ROOTFS_SCRIPTS[cfg.rootfs_choice]
             cfg.rootfs_name   = ROOTFS_NAMES.get(cfg.rootfs_choice, cfg.rootfs_choice.replace('_', ' ').capitalize())
-            if cfg.steps.get('kernel'):
-                echo_prompt_section('Kernel')
-                cfg.kernel_clean = ask_clean_kernel(
-                    default=cfg.kernel_clean,
-                    qmark=SECTION_QMARK,
-                )
-            if cfg.steps.get('rootfs'):
-                echo_prompt_section('Rootfs')
-                cfg.rootfs_fresh = ask_clean_rootfs(
-                    default=not cfg.rootfs_stages,
-                    qmark=SECTION_QMARK,
-                )
+            flash_choice, sd_device, usb_device = ask_flash()
+            cfg.flash_choice = flash_choice
+            cfg.sd_device = sd_device
+            cfg.usb_device = usb_device
+            if cfg.flash_choice != 'none' and cfg.rootfs_stages is not None and cfg.rootfs_choice in ROOTFS_STAGE_LABELS:
+                if 6 not in cfg.rootfs_stages:
+                    cfg.rootfs_stages = sorted(cfg.rootfs_stages + [6])
+                    print(f'Note: flashing selected; auto-adding rootfs stage 6.', flush=True)
             execute(cfg)
             return
         print('Saved config not found or corrupt — continuing with interactive setup.\n', flush=True)

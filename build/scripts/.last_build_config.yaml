@@ -1,0 +1,21 @@
+include_rfnm_rootfs: false
+kernel_clean: true
+rfnm_load_on_startup: false
+rootfs_choice: base
+rootfs_fresh: true
+rootfs_stages:
+- 1
+- 2
+- 5
+- 6
+selected_optionals: []
+steps:
+  dtbs: false
+  kernel: true
+  la9310_driver: false
+  la9310_rtos: false
+  repos: true
+  rootfs: true
+  uboot: true
+usb_a_mode: device
+weston_service_enabled: true

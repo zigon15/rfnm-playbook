@@ -3,8 +3,7 @@
 set -e
 
 # #-- Apply required patches
-cd /work/build/imx8mp-kernel
-/work/scripts/kernel/apply-rfnm-overlay.sh
+# Kernel overlay is already baked into /work/kernel (playbook root: kernel/)
 
 cd /work/build/imx8mp-uboot
 git apply /work/scripts/patches/imx8mp-uboot.patch

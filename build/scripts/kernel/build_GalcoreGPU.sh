@@ -9,10 +9,7 @@ BUILD_ERROR_LOG="/work/build/kernel-errors.log"
 echo "[build_GalcoreGPU] Writing errors to $BUILD_ERROR_LOG"
 exec 2>> "$BUILD_ERROR_LOG"
 
-cd /work/build/imx8mp-kernel/
-
-# clean.sh removes untracked overlay files, including the RFNM defconfig.
-/work/scripts/kernel/apply-rfnm-overlay.sh
+cd /work/kernel/
 
 # Make config for i.MX8M
 make imx8mp_rfnm_defconfig
@@ -65,6 +62,11 @@ scripts/config --disable CONFIG_DRM_SIMPLEDRM
 # Without this, sandboxed services fail with "Invalid argument" and cause ~5min login delay
 scripts/config --enable CONFIG_NAMESPACES
 scripts/config --enable CONFIG_USER_NS
+
+# Disable automatic stack variable initialization for lower runtime overhead.
+scripts/config --disable CONFIG_INIT_STACK_ALL_ZERO
+scripts/config --disable CONFIG_INIT_STACK_ALL_PATTERN
+scripts/config --enable CONFIG_INIT_STACK_NONE
 
 # Root filesystem support. flashSD.sh formats partition 2 as ext4, so ext4 must
 # be built into the kernel rather than left unset or modular.

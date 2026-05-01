@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #---- PATHS (Adjust these to match your actual build paths) ----#
-KERNEL_ROOT="/work/build/imx8mp-kernel"
+KERNEL_ROOT="/work/kernel"
 DEBIAN_ROOT_FS="/work/build/debian"
 
 # Use USB_DEVICE env var if set, otherwise use $1

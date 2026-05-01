@@ -23,4 +23,5 @@ podman run -it --privileged --rm \
     -e BRANCH_NAME="$BRANCH_NAME" \
     -v "$(pwd)/scripts:/work/scripts" \
     -v "$(pwd)/build/${BRANCH_NAME}:/work/build" \
+    -v "$(pwd)/../kernel:/work/kernel" \
     rfnm-builder "$@"

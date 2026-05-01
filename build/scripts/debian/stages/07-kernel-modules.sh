@@ -1,7 +1,7 @@
 #!/bin/sh
 # Stage 7 — kernel-modules
 # Installs compiled kernel modules and NXP i.MX firmware into the final rootfs.
-# Requires the kernel to have been built at /work/build/imx8mp-kernel/.
+# Requires the kernel to have been built at /work/kernel.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -14,13 +14,13 @@ if [ ! -d "$BUILD_DIR" ]; then
     exit 1
 fi
 
-if [ ! -d '/work/build/imx8mp-kernel' ]; then
-    echo "Error: /work/build/imx8mp-kernel not found — build the kernel first."
+if [ ! -d '/work/kernel' ]; then
+    echo "Error: /work/kernel not found — build the kernel first."
     exit 1
 fi
 
 echo "Installing kernel modules to $BUILD_DIR..."
-cd /work/build/imx8mp-kernel/
+cd /work/kernel/
 make \
     ARCH=arm64 \
     CROSS_COMPILE=aarch64-linux-gnu- \

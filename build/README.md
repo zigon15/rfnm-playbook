@@ -43,8 +43,8 @@ sudo ./runContainer.sh
 
 After a successful build, outputs are under `/work/build/`, including:
 - `imx8mp-uboot/flash.bin`
-- `imx8mp-kernel/arch/arm64/boot/Image`
-- `imx8mp-kernel/arch/arm64/boot/dts/freescale/imx8mp-rfnm.dtb`
+- `kernel/arch/arm64/boot/Image`
+- `kernel/arch/arm64/boot/dts/freescale/imx8mp-rfnm.dtb`
 - `debian/` (rootfs)
 
 ## References
