@@ -263,6 +263,18 @@ def ask_usb_a_mode(qmark='?'):
     ).ask()
 
 
+def ask_weston_service_enabled(default=True, qmark='?'):
+    enabled = questionary.confirm(
+        'Enable Weston service by default?',
+        default=default,
+        qmark=qmark,
+        style=STYLE,
+    ).ask()
+    if enabled is None:
+        sys.exit(1)
+    return enabled
+
+
 def ask_rfnm_options(default_include=True, qmark='?'):
     """Ask all RFNM-related questions. Returns (include, load_on_startup, usb_a_mode)."""
     include = ask_include_rfnm_support(default=default_include, qmark=qmark)
@@ -290,6 +302,7 @@ def save_build_config(cfg):
         'rootfs_fresh': cfg.rootfs_fresh,
         'rootfs_stages': cfg.rootfs_stages,
         'selected_optionals': cfg.selected_optionals,
+        'weston_service_enabled': cfg.weston_service_enabled,
         'include_rfnm_rootfs': cfg.include_rfnm_rootfs,
         'rfnm_load_on_startup': cfg.rfnm_load_on_startup,
         'usb_a_mode': cfg.usb_a_mode,
@@ -317,6 +330,7 @@ def load_build_config():
     cfg.rootfs_fresh = data.get('rootfs_fresh', False)
     cfg.rootfs_stages = data.get('rootfs_stages', None)
     cfg.selected_optionals = data.get('selected_optionals', [])
+    cfg.weston_service_enabled = data.get('weston_service_enabled', True)
     cfg.include_rfnm_rootfs = data.get('include_rfnm_rootfs', False)
     cfg.rfnm_load_on_startup = data.get('rfnm_load_on_startup', False)
     cfg.usb_a_mode = data.get('usb_a_mode', 'device')
@@ -356,6 +370,7 @@ class BuildConfig:
     rootfs_fresh: bool = False
     rootfs_stages: Optional[list] = None
     selected_optionals: list = field(default_factory=list)
+    weston_service_enabled: bool = True
     include_rfnm_rootfs: bool = False
     rfnm_load_on_startup: bool = False
     usb_a_mode: str = 'device'
@@ -410,6 +425,8 @@ def print_build_summary(title, cfg, elapsed_seconds=None):
         print(f'   Mode: {mode_label}')
         for num, label, ran in stage_states:
             print(f'   {status_icon(ran)} Stage {num} — {label}')
+            if cfg.rootfs_choice == 'weston' and num == 3:
+                print(f'      Weston service enabled by default: {"yes" if cfg.weston_service_enabled else "no"}')
         for key, label, ran in optional_states:
             print(f'   {status_icon(ran)} {label} (optional)')
         if cfg.include_rfnm_rootfs:
@@ -505,12 +522,13 @@ def execute(cfg):
             cmd_parts.append('./clean.sh')
         rfnm_support = '1' if cfg.include_rfnm_rootfs else '0'
         rfnm_load = '1' if cfg.rfnm_load_on_startup else '0'
+        weston_service = '1' if cfg.weston_service_enabled else '0'
         optional_str = ' '.join(cfg.selected_optionals)
         if cfg.rootfs_stages is not None:
             stages_str = ' '.join(str(s) for s in cfg.rootfs_stages)
-            cmd_parts.append(f'RFNM_SUPPORT="{rfnm_support}" RFNM_LOAD_ON_STARTUP="{rfnm_load}" USB_A_MODE="{cfg.usb_a_mode}" OPTIONAL_STAGES="{optional_str}" STAGES="{stages_str}" ./{cfg.rootfs_script}')
+            cmd_parts.append(f'RFNM_SUPPORT="{rfnm_support}" RFNM_LOAD_ON_STARTUP="{rfnm_load}" USB_A_MODE="{cfg.usb_a_mode}" WESTON_ENABLE_SERVICE="{weston_service}" OPTIONAL_STAGES="{optional_str}" STAGES="{stages_str}" ./{cfg.rootfs_script}')
         else:
-            cmd_parts.append(f'RFNM_SUPPORT="{rfnm_support}" RFNM_LOAD_ON_STARTUP="{rfnm_load}" USB_A_MODE="{cfg.usb_a_mode}" OPTIONAL_STAGES="{optional_str}" ./{cfg.rootfs_script}')
+            cmd_parts.append(f'RFNM_SUPPORT="{rfnm_support}" RFNM_LOAD_ON_STARTUP="{rfnm_load}" USB_A_MODE="{cfg.usb_a_mode}" WESTON_ENABLE_SERVICE="{weston_service}" OPTIONAL_STAGES="{optional_str}" ./{cfg.rootfs_script}')
         run_step(f'Building Debian Rootfs  ({cfg.rootfs_name})', '\n'.join(cmd_parts))
 
     # Flash steps
@@ -574,18 +592,6 @@ def main():
                 )
             cfg.rootfs_script = ROOTFS_SCRIPTS[cfg.rootfs_choice]
             cfg.rootfs_name   = ROOTFS_NAMES.get(cfg.rootfs_choice, cfg.rootfs_choice.replace('_', ' ').capitalize())
-            if cfg.steps.get('kernel'):
-                echo_prompt_section('Kernel')
-                cfg.kernel_clean = ask_clean_kernel(
-                    default=cfg.kernel_clean,
-                    qmark=SECTION_QMARK,
-                )
-            if cfg.steps.get('rootfs'):
-                echo_prompt_section('Rootfs')
-                cfg.rootfs_fresh = ask_clean_rootfs(
-                    default=not cfg.rootfs_stages,
-                    qmark=SECTION_QMARK,
-                )
             execute(cfg)
             return
         print('Saved config not found or corrupt — continuing with interactive setup.\n', flush=True)
@@ -686,6 +692,9 @@ def main():
         if rootfs_choice is None:
             sys.exit(1)
 
+        weston_service_enabled = True
+        if rootfs_choice == 'weston':
+            weston_service_enabled = ask_weston_service_enabled(qmark=SECTION_QMARK)
         include_rfnm, rfnm_load, usb_a = ask_rfnm_options(qmark=SECTION_QMARK)
         rootfs_stages, selected_optionals = ask_rootfs_build_mode(rootfs_choice, qmark=SECTION_QMARK)
 
@@ -704,6 +713,9 @@ def main():
         if rootfs_choice is None:
             sys.exit(1)
 
+        weston_service_enabled = True
+        if rootfs_choice == 'weston':
+            weston_service_enabled = ask_weston_service_enabled(qmark=SECTION_QMARK)
         include_rfnm, rfnm_load, usb_a = ask_rfnm_options(qmark=SECTION_QMARK)
 
         rootfs_fresh = False
@@ -717,6 +729,7 @@ def main():
         include_rfnm = False
         rfnm_load = False
         usb_a = 'device'
+        weston_service_enabled = True
         rootfs_fresh = False
         rootfs_stages = None
         selected_optionals = []
@@ -733,6 +746,7 @@ def main():
         rootfs_fresh=rootfs_fresh,
         rootfs_stages=rootfs_stages,
         selected_optionals=selected_optionals,
+        weston_service_enabled=weston_service_enabled,
         include_rfnm_rootfs=include_rfnm,
         rfnm_load_on_startup=rfnm_load,
         usb_a_mode=usb_a,

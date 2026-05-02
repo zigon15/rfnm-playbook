@@ -26,6 +26,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/stages/common.sh"
 STAGES="${STAGES:-1 2 3 4 5 6 7}"
+WESTON_ENABLE_SERVICE="${WESTON_ENABLE_SERVICE:-1}"
 
 should_run() {
     num=$1
@@ -127,7 +128,12 @@ if should_run 5; then
     mount_chroot "$BUILD_DIR"
     trap 'umount_chroot "$BUILD_DIR"' EXIT
     chroot "$BUILD_DIR" ldconfig
-    chroot "$BUILD_DIR" systemctl enable weston
+    if [ "$WESTON_ENABLE_SERVICE" = "1" ]; then
+        chroot "$BUILD_DIR" systemctl enable weston
+    else
+        chroot "$BUILD_DIR" systemctl disable weston 2>/dev/null || true
+        echo "Weston service left disabled."
+    fi
 
     echo "Merge complete."
 fi
