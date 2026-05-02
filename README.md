@@ -12,7 +12,7 @@ See **[build/README.md](build/README.md)** for full build and flash instructions
 cd build
 
 # Build the container (one-time)
-sudo ./buildContainer.sh
+./buildContainer.sh
 
 # Run container, mapping in your SD card
 sudo ./runContainer.sh /dev/sdX

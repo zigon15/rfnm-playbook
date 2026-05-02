@@ -1,84 +1,98 @@
 #!/bin/sh
-
-#---- Configurable Variables ----#
-BUILD_DIR='/work/build/debian'
-ROOT_PASSWORD="rfnm"
-
-#---- Create Debian Root Filesystem ----#
-mkdir -p $BUILD_DIR
-
-debootstrap --arch=arm64 --foreign trixie "$BUILD_DIR" http://deb.debian.org/debian
-cp /usr/bin/qemu-aarch64-static "$BUILD_DIR/usr/bin/"
-
-chroot "$BUILD_DIR" /bin/bash <<EOF
-    set -e
-    export DEBIAN_FRONTEND=noninteractive
-
-    # Finish the bootstrap process
-    /debootstrap/debootstrap --second-stage
-
-    # Set the root password non-interactively
-    echo "root:$ROOT_PASSWORD" | chpasswd
-
-    # Set the hostname
-    echo "rfnm" > /etc/hostname
-
-    # Non-root user
-    useradd -m -s /bin/bash rfnm
-    echo "rfnm:rfnm" | chpasswd
-    usermod -aG sudo rfnm
-    usermod -aG input,tty rfnm
-
-    apt-get update
-
-    # Base utilities
-    apt-get install -y \
-        openssh-server \
-        systemd-resolved \
-        pciutils \
-        systemd-timesyncd \
-        htop \
-        sudo \
-        wget \
-        u-boot-tools \
-        build-essential \
-        vulkan-tools
-
-    # Enable networking
-    systemctl enable systemd-networkd
-    systemctl enable systemd-resolved
-    systemctl enable systemd-timesyncd
-
-    ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
-
-    apt-get clean
-EOF
-
-
-# Apply each overlay component in dependency order:
-#   base    - core system config (networking, ssh, serial, rfnm scripts, gpio, firmware)
-#   vivante - Vivante GPU support files (udev rule, libjpeg)
+# Orchestrator: Base rootfs + Vivante GL userspace
 #
-# Vivante GPU driver is installed via sub/installGalcoreDriver.sh (downloaded from NXP)
-# and must run AFTER apt-get to overwrite any Mesa libs pulled in as dependencies.
-for overlay in base vivante; do
-    if [ -d "./rootfs-overlay/$overlay" ]; then
-        echo "Installing $overlay overlay..."
-        cp -rv "./rootfs-overlay/$overlay/"* "$BUILD_DIR/"
+# Stages:
+#   1 - debootstrap+configure  (base Debian rootfs + packages, users, networking)
+#   2 - vivante                (download Vivante GPU + Hantro VPU userspace -> debian-stages/galcore/)
+#   5 - merge+overlays         (apply overlays, wipe debian/, copy chroot + vivante, ldconfig)
+#   6 - kernel-modules         (install .ko files + NXP firmware into debian/)
+#   7 - rfnm                   (LA9310 driver modules + FreeRTOS firmware into debian/)
+#
+# Run all stages (default):
+#   ./build_GalcoreGPU.sh
+#
+# Run a specific subset of stages:
+#   STAGES="2 5" ./build_GalcoreGPU.sh   # vivante + merge
+#   STAGES="5"   ./build_GalcoreGPU.sh   # just merge
+#   STAGES="6 7" ./build_GalcoreGPU.sh   # re-install modules/RFNM only
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/stages/common.sh"
+STAGES="${STAGES:-1 2 5 6 7}"
+
+should_run() {
+    num=$1
+    for s in $STAGES; do
+        [ "$s" = "$num" ] && return 0
+    done
+    return 1
+}
+
+run_stage() {
+    num=$1 script=$2
+    if ! should_run "$num"; then
+        echo "[SKIP] Stage $num - $script"
+        return 0
     fi
-done
+    echo ""
+    echo "========================================"
+    echo "  Stage $num - $script"
+    echo "========================================"
+    "$SCRIPT_DIR/stages/$script"
+}
 
-# Install Vivante GPU userspace driver
-./sub/installGalcoreDriver.sh
+run_stage 1 01-debootstrap.sh
+run_stage 2 03-vivante.sh
 
-# Fix libGLESv2.so.2 symlink to point to Vivante real impl, not GLVND stub
-ln -sf libGLESv2.so.2.0.0 "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2"
+# Stage 5: merge + overlays.
+if should_run 5; then
+    echo ""
+    echo "========================================"
+    echo "  Stage 5 - merge + overlays"
+    echo "========================================"
 
-# Remove Debian GLVND shims that conflict with Vivante's direct libraries
-rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2.1.0"
-rm -f "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libEGL.so.1.1.0"
+    if [ ! -d "$CHROOT_DIR" ]; then
+        echo "Error: $CHROOT_DIR not found - run stage 1 first."
+        exit 1
+    fi
+    if [ ! -d "$GALCORE_STAGE" ]; then
+        echo "Error: $GALCORE_STAGE not found - run stage 2 (vivante) first."
+        exit 1
+    fi
 
-# Update dynamic linker cache to pick up overlay libraries
-chroot "$BUILD_DIR" ldconfig
+    for overlay in base vivante; do
+        overlay_dir="$SCRIPT_DIR/rootfs-overlay/$overlay"
+        if [ -d "$overlay_dir" ]; then
+            echo "Applying $overlay overlay..."
+            cp -a "$overlay_dir/." "$CHROOT_DIR/"
+        fi
+    done
 
-echo "Overlay installation complete."
+    echo "Wiping and recreating $BUILD_DIR..."
+    rm -rf "$BUILD_DIR"
+    mkdir -p "$BUILD_DIR"
+
+    echo "Merging base chroot ($CHROOT_DIR)..."
+    cp -a "$CHROOT_DIR/." "$BUILD_DIR/"
+
+    echo "Merging Vivante driver stage ($GALCORE_STAGE)..."
+    cp -a "$GALCORE_STAGE/." "$BUILD_DIR/"
+
+    ln -sf libGLESv2.so.2.0.0 \
+        "$BUILD_DIR/usr/lib/aarch64-linux-gnu/libGLESv2.so.2"
+
+    mount_chroot "$BUILD_DIR"
+    trap 'umount_chroot "$BUILD_DIR"' EXIT
+    chroot "$BUILD_DIR" ldconfig
+    umount_chroot "$BUILD_DIR"
+    trap - EXIT
+
+    echo "Merge complete."
+fi
+
+run_stage 6 07-kernel-modules.sh
+run_stage 7 08-rfnm.sh
+
+echo ""
+echo "Base rootfs build complete."

@@ -3,11 +3,11 @@
 # chroot mount/unmount helpers. Do NOT execute directly.
 
 # ── Output directories ────────────────────────────────────────────────────────
-CHROOT_DIR='/work/build/debian-build'      # live chroot workspace (stages 01-05)
-GALCORE_STAGE='/work/build/debian-stages/galcore'  # Vivante runtime staging
-WESTON_STAGE='/work/build/debian-stages/weston'    # weston-imx DESTDIR staging
-GPU_SDK_STAGE='/work/build/debian-stages/gpu-sdk'  # GPU SDK demo-framework staging
-BUILD_DIR='/work/build/debian'             # final assembled rootfs (stage 06 only)
+CHROOT_DIR="${CHROOT_DIR:-/work/build/debian-build}"      # live chroot workspace (stages 01-05)
+GALCORE_STAGE="${GALCORE_STAGE:-/work/build/debian-stages/galcore}"  # Vivante runtime staging
+WESTON_STAGE="${WESTON_STAGE:-/work/build/debian-stages/weston}"    # weston-imx DESTDIR staging
+GPU_SDK_STAGE="${GPU_SDK_STAGE:-/work/build/debian-stages/gpu-sdk}"  # GPU SDK demo-framework staging
+BUILD_DIR="${BUILD_DIR:-/work/build/debian}"             # final assembled rootfs (stage 06 only)
 
 # ── Debian bootstrap config ───────────────────────────────────────────────────
 ROOT_PASSWORD='rfnm'
