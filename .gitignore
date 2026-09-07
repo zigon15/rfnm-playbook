@@ -1,2 +1,4 @@
 build/podman/scripts/debian/rootfs-overlay/base/etc/systemd/network/eth.network
 kernel/
+
+**/.vscode-ctags

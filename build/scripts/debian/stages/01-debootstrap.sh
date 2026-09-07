@@ -69,7 +69,8 @@ apt-get install -y \
     u-boot-tools \
     build-essential \
     seatd \
-    vulkan-tools
+    vulkan-tools \
+    gdb
 
 systemctl enable systemd-networkd
 systemctl enable systemd-resolved
@@ -90,7 +91,7 @@ apt-get install -y \
     libva-drm2 \
     xwayland \
     libgl1 \
-    libegl-mesa0
+    libegl-mesa0 
 
 systemctl enable seatd
 

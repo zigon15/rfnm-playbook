@@ -8,6 +8,7 @@ set -e
 . "$(dirname "$0")/../common.sh"
 
 rm -rf \
+    "$GPU_SDK_STAGE" \
     "$CHROOT_DIR/tmp/gtec-demo-framework" \
     "$CHROOT_DIR/tmp/gpu-sdk-stage"
 
@@ -122,7 +123,6 @@ SDK_BUILD
 
 # ── Extract DESTDIR output to host staging ──────────────────────────────────
 echo "[04-gpu-sdk] Extracting GPU SDK artifacts to staging..."
-rm -rf "$GPU_SDK_STAGE"
 mkdir -p "$GPU_SDK_STAGE"
 cp -a "$CHROOT_DIR/tmp/gpu-sdk-stage/." "$GPU_SDK_STAGE/"
 rm -rf "$CHROOT_DIR/tmp/gpu-sdk-stage" "$CHROOT_DIR/tmp/gtec-demo-framework"

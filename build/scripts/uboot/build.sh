@@ -7,7 +7,7 @@ UBOOT_ROOT="/work/build/imx8mp-uboot"
 
 #---- Get Prerequisites ----#
 #- DDR firmware
-cp /work/build/firmware/firmware-imx-8.16/firmware/ddr/synopsys/lpddr4*.bin "$UBOOT_ROOT"
+cp /work/build/firmware/firmware-imx-8.31-4fa5b46/firmware/ddr/synopsys/lpddr4*.bin "$UBOOT_ROOT"
 
 #- Arm Trusted Firmware
 cp /work/build/imx-atf/build/imx8mp/release/bl31.bin "$UBOOT_ROOT"
@@ -22,6 +22,5 @@ make imx8mp_rfnm_defconfig
 make flash.bin \
     KCFLAGS="-Wno-int-conversion" \
     -j$(nproc)
-
 
 

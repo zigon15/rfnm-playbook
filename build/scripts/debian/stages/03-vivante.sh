@@ -26,6 +26,7 @@ HANTRO_CACHE="/work/build/firmware/${HANTRO_BIN}"
 
 # Nuke any partial unpack from a previous crashed run.
 rm -rf \
+    "$GALCORE_STAGE" \
     "/work/build/firmware/imx-gpu-viv-${GPU_VIV_VERSION}-unpack" \
     "/work/build/firmware/imx-vpu-hantro-${HANTRO_VERSION}-unpack"
 
@@ -87,6 +88,17 @@ fi
 
 # 6) Remove dev-only bits from the runtime stage.
 rm -rf "$GALCORE_STAGE/usr/lib/pkgconfig"
+mkdir -p "$STAGE_LIBDIR/pkgconfig"
+for pc in gbm glesv1_cm glesv2 vg; do
+    if [ -f "$GPU_CORE/usr/lib/pkgconfig/${pc}.pc" ]; then
+        sed 's|^libdir=/usr/lib$|libdir=/usr/lib/aarch64-linux-gnu|' \
+            "$GPU_CORE/usr/lib/pkgconfig/${pc}.pc" > "$STAGE_LIBDIR/pkgconfig/${pc}.pc"
+    fi
+done
+if [ -f "$GPU_CORE/usr/lib/pkgconfig/egl_wayland.pc" ]; then
+    sed 's|^libdir=/usr/lib$|libdir=/usr/lib/aarch64-linux-gnu|' \
+        "$GPU_CORE/usr/lib/pkgconfig/egl_wayland.pc" > "$STAGE_LIBDIR/pkgconfig/egl.pc"
+fi
 
 # 7) etc (Vulkan ICD, OpenCL config) and udev rule.
 mkdir -p "$GALCORE_STAGE/etc"
@@ -119,6 +131,13 @@ for pc in "$GPU_CORE/usr/lib/pkgconfig/"*.pc; do
     sed 's|^libdir=/usr/lib$|libdir=/usr/lib/aarch64-linux-gnu|' \
         "$pc" > "$PKGCONFIG_DIR/$(basename "$pc")"
 done
+
+# Match the NXP Yocto Wayland distro behavior: the backend-specific EGL
+# pkg-config file becomes egl.pc, so consumers build with WL_EGL_PLATFORM.
+if [ -f "$GPU_CORE/usr/lib/pkgconfig/egl_wayland.pc" ]; then
+    sed 's|^libdir=/usr/lib$|libdir=/usr/lib/aarch64-linux-gnu|' \
+        "$GPU_CORE/usr/lib/pkgconfig/egl_wayland.pc" > "$PKGCONFIG_DIR/egl.pc"
+fi
 
 # ── Download Hantro VPU driver ───────────────────────────────────────────────
 if [ ! -f "$HANTRO_CACHE" ]; then

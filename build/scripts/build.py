@@ -473,8 +473,8 @@ def execute(cfg):
             ./checkoutGoodCommits.sh
             ./getFirmware.sh
         ''')
-        if not os.path.isdir('/work/build/firmware/firmware-imx-8.16/'):
-            print(f'\n{RED}✗  FAIL: Firmware not found: /work/build/firmware/firmware-imx-8.16/{NC}', flush=True)
+        if not os.path.isdir('/work/build/firmware/firmware-imx-8.31-4fa5b46/'):
+            print(f'\n{RED}✗  FAIL: Firmware not found: /work/build/firmware/firmware-imx-8.31-4fa5b46/{NC}', flush=True)
             sys.exit(1)
 
     if cfg.steps.get('uboot'):

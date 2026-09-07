@@ -1,0 +1,157 @@
+diff --git a/libweston/renderer-gl/egl-glue.c b/libweston/renderer-gl/egl-glue.c
+index b1cfd1b8c..1875cd6af 100644
+--- a/libweston/renderer-gl/egl-glue.c
++++ b/libweston/renderer-gl/egl-glue.c
+@@ -571,7 +571,12 @@
+            (void *) eglGetProcAddress("eglQueryDisplayAttribEXT");
+        gr->query_device_string =
+            (void *) eglGetProcAddress("eglQueryDeviceStringEXT");
+-		gr->has_device_query = true;
++		if (gr->query_display_attrib && gr->query_device_string) {
++			gr->has_device_query = true;
++		} else {
++			weston_log("warning: EGL_EXT_device_query advertised but "
++				   "required entry points are unavailable.\n");
++		}
+ 	}
+ 
+ 	if (weston_check_egl_extension(extensions, "EGL_EXT_platform_base")) {
+@@ -579,7 +584,20 @@
+        gr->get_platform_display =
+            (void *) eglGetProcAddress("eglGetPlatformDisplayEXT");
+        gr->create_platform_window =
+            (void *) eglGetProcAddress("eglCreatePlatformWindowSurfaceEXT");
+-		gr->has_platform_base = true;
++#ifdef EGL_VERSION_1_5
++		if (!gr->get_platform_display)
++			gr->get_platform_display =
++				(PFNEGLGETPLATFORMDISPLAYEXTPROC) eglGetPlatformDisplay;
++		if (!gr->create_platform_window)
++			gr->create_platform_window =
++				(PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC) eglCreatePlatformWindowSurface;
++#endif
++		if (gr->get_platform_display) {
++			gr->has_platform_base = true;
++		} else {
++			weston_log("warning: EGL_EXT_platform_base advertised but "
++				   "no eglGetPlatformDisplay entry point is available.\n");
++		}
+ 	} else {
+        weston_log("warning: EGL_EXT_platform_base not supported.\n");
+@@ -654,12 +672,63 @@
+    if (weston_check_egl_extension(extensions, "EGL_IMG_context_priority"))
+        gr->has_context_priority = true;
+ 
+-	if (weston_check_egl_extension(extensions, "EGL_WL_bind_wayland_display"))
+-		gr->has_bind_display = true;
++	if (weston_check_egl_extension(extensions, "EGL_WL_bind_wayland_display")) {
++		if (gr->bind_display && gr->unbind_display && gr->query_buffer) {
++			gr->has_bind_display = true;
++		} else {
++			weston_log("warning: EGL_WL_bind_wayland_display advertised but "
++				   "required entry points are unavailable.\n");
++		}
++	}
+ 	if (gr->has_bind_display) {
+-		assert(gr->bind_display);
+-		assert(gr->unbind_display);
+-		assert(gr->query_buffer);
+ 		ret = gr->bind_display(gr->egl_display, ec->wl_display);
+ 		if (!ret)
+ 			gr->has_bind_display = false;
++	}
++
++	if (weston_check_egl_extension(extensions, "EGL_EXT_buffer_age"))
++		gr->has_egl_buffer_age = true;
++
++	if (weston_check_egl_extension(extensions, "EGL_KHR_partial_update")) {
++		if (gr->set_damage_region) {
++			gr->has_egl_partial_update = true;
++		} else {
++			weston_log("warning: EGL_KHR_partial_update advertised but "
++				   "required entry point is unavailable.\n");
++		}
++	}
++
++	for (i = 0; i < ARRAY_LENGTH(swap_damage_ext_to_entrypoint); i++) {
++		if (weston_check_egl_extension(extensions,
++					swap_damage_ext_to_entrypoint[i].extension)) {
++			gr->swap_buffers_with_damage =
++				(void *) eglGetProcAddress(
++						swap_damage_ext_to_entrypoint[i].entrypoint);
++			if (gr->swap_buffers_with_damage)
++				break;
++
++			weston_log("warning: %s advertised but required entry point %s "
++				   "is unavailable.\n",
++				   swap_damage_ext_to_entrypoint[i].extension,
++				   swap_damage_ext_to_entrypoint[i].entrypoint);
++		}
++	}
++
++	if (weston_check_egl_extension(extensions, "EGL_KHR_no_config_context") ||
++	    weston_check_egl_extension(extensions, "EGL_MESA_configless_context"))
++		gr->has_configless_context = true;
++
++	if (weston_check_egl_extension(extensions, "EGL_KHR_surfaceless_context"))
++		gr->has_surfaceless_context = true;
++
++	if (weston_check_egl_extension(extensions, "EGL_EXT_image_dma_buf_import"))
++		gr->has_dmabuf_import = true;
+ 
+    if (weston_check_egl_extension(extensions,
+                      "EGL_EXT_image_dma_buf_import_modifiers")) {
+        gr->query_dmabuf_formats =
+            (void *) eglGetProcAddress("eglQueryDmaBufFormatsEXT");
+        gr->query_dmabuf_modifiers =
+            (void *) eglGetProcAddress("eglQueryDmaBufModifiersEXT");
+-		assert(gr->query_dmabuf_formats);
+-		assert(gr->query_dmabuf_modifiers);
+-		gr->has_dmabuf_import_modifiers = true;
++		if (gr->query_dmabuf_formats && gr->query_dmabuf_modifiers) {
++			gr->has_dmabuf_import_modifiers = true;
++		} else {
++			weston_log("warning: EGL_EXT_image_dma_buf_import_modifiers "
++				   "advertised but required entry points are unavailable.\n");
++		}
+ 	}
+ 
+ 	if (weston_check_egl_extension(extensions, "EGL_KHR_fence_sync") &&
+ 	    weston_check_egl_extension(extensions, "EGL_ANDROID_native_fence_sync")) {
+        gr->create_sync =
+            (void *) eglGetProcAddress("eglCreateSyncKHR");
+        gr->destroy_sync =
+            (void *) eglGetProcAddress("eglDestroySyncKHR");
+        gr->dup_native_fence_fd =
+            (void *) eglGetProcAddress("eglDupNativeFenceFDANDROID");
+-		assert(gr->create_sync);
+-		assert(gr->destroy_sync);
+-		assert(gr->dup_native_fence_fd);
+-		gr->has_native_fence_sync = true;
++		if (gr->create_sync && gr->destroy_sync &&
++		    gr->dup_native_fence_fd) {
++			gr->has_native_fence_sync = true;
++		} else {
++			weston_log("warning: EGL_ANDROID_native_fence_sync advertised "
++				   "but required entry points are unavailable.\n");
++		}
+ 	} else {
+        weston_log("warning: Disabling render GPU timeline and explicit "
+               "synchronization due to missing "
+               "EGL_ANDROID_native_fence_sync extension\n");
+    }
+
+    if (weston_check_egl_extension(extensions, "EGL_KHR_wait_sync")) {
+        gr->wait_sync = (void *) eglGetProcAddress("eglWaitSyncKHR");
+-		assert(gr->wait_sync);
+-		gr->has_wait_sync = true;
++		if (gr->wait_sync) {
++			gr->has_wait_sync = true;
++		} else {
++			weston_log("warning: EGL_KHR_wait_sync advertised but required "
++				   "entry point is unavailable.\n");
++		}
+ 	} else {
+        weston_log("warning: Disabling explicit synchronization due"
+               "to missing EGL_KHR_wait_sync extension\n");
+ 	}

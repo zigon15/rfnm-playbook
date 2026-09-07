@@ -2,7 +2,7 @@
 set -e
 
 #---- Build Kernel (Galcore / Vivante GPU) ----#
-JOBS="${JOBS:-$(nproc)}"
+JOBS="${JOBS:-$(nproc --ignore=4)}"
 BUILD_ERROR_LOG="/work/build/kernel-errors.log"
 
 : > "$BUILD_ERROR_LOG"
